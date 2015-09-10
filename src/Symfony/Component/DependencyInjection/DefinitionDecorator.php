@@ -24,7 +24,7 @@ use Symfony\Component\DependencyInjection\Exception\OutOfBoundsException;
 class DefinitionDecorator extends Definition
 {
     private $parent;
-    private $changes;
+    private $changes = array();
 
     /**
      * Constructor.
@@ -38,7 +38,6 @@ class DefinitionDecorator extends Definition
         parent::__construct();
 
         $this->parent = $parent;
-        $this->changes = array();
     }
 
     /**
@@ -66,7 +65,7 @@ class DefinitionDecorator extends Definition
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      *
      * @api
      */
@@ -78,43 +77,17 @@ class DefinitionDecorator extends Definition
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * @api
+     * {@inheritdoc}
      */
-    public function setFactoryClass($class)
+    public function setFactory($callable)
     {
-        $this->changes['factory_class'] = true;
+        $this->changes['factory'] = true;
 
-        return parent::setFactoryClass($class);
+        return parent::setFactory($callable);
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * @api
-     */
-    public function setFactoryMethod($method)
-    {
-        $this->changes['factory_method'] = true;
-
-        return parent::setFactoryMethod($method);
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @api
-     */
-    public function setFactoryService($service)
-    {
-        $this->changes['factory_service'] = true;
-
-        return parent::setFactoryService($service);
-    }
-
-    /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      *
      * @api
      */
@@ -126,7 +99,7 @@ class DefinitionDecorator extends Definition
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      *
      * @api
      */
@@ -138,7 +111,7 @@ class DefinitionDecorator extends Definition
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      *
      * @api
      */
@@ -150,7 +123,7 @@ class DefinitionDecorator extends Definition
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      *
      * @api
      */
@@ -162,12 +135,22 @@ class DefinitionDecorator extends Definition
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function setDecoratedService($id, $renamedId = null, $priority = 0)
+    {
+        $this->changes['decorated_service'] = true;
+
+        return parent::setDecoratedService($id, $renamedId, $priority);
+    }
+
+    /**
      * Gets an argument to pass to the service constructor/factory method.
      *
      * If replaceArgument() has been used to replace an argument, this method
      * will return the replacement value.
      *
-     * @param integer $index
+     * @param int $index
      *
      * @return mixed The argument value
      *
@@ -198,10 +181,11 @@ class DefinitionDecorator extends Definition
      * certain conventions when you want to overwrite the arguments of the
      * parent definition, otherwise your arguments will only be appended.
      *
-     * @param integer $index
-     * @param mixed   $value
+     * @param int   $index
+     * @param mixed $value
      *
      * @return DefinitionDecorator the current instance
+     *
      * @throws InvalidArgumentException when $index isn't an integer
      *
      * @api

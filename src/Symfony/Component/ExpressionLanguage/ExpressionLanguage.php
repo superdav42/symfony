@@ -29,13 +29,19 @@ class ExpressionLanguage
     private $parser;
     private $compiler;
 
-    protected $functions;
+    protected $functions = array();
 
-    public function __construct(ParserCacheInterface $cache = null)
+    /**
+     * @param ParserCacheInterface                  $cache
+     * @param ExpressionFunctionProviderInterface[] $providers
+     */
+    public function __construct(ParserCacheInterface $cache = null, array $providers = array())
     {
         $this->cache = $cache ?: new ArrayParserCache();
-        $this->functions = array();
         $this->registerFunctions();
+        foreach ($providers as $provider) {
+            $this->registerProvider($provider);
+        }
     }
 
     /**
@@ -68,6 +74,7 @@ class ExpressionLanguage
      * Parses an expression.
      *
      * @param Expression|string $expression The expression to parse
+     * @param array             $names      An array of valid names
      *
      * @return ParsedExpression A ParsedExpression instance
      */
@@ -77,7 +84,14 @@ class ExpressionLanguage
             return $expression;
         }
 
-        $key = $expression.'//'.implode('-', $names);
+        asort($names);
+        $cacheKeyItems = array();
+
+        foreach ($names as $nameKey => $name) {
+            $cacheKeyItems[] = is_int($nameKey) ? $name : $nameKey.':'.$name;
+        }
+
+        $key = $expression.'//'.implode('|', $cacheKeyItems);
 
         if (null === $parsedExpression = $this->cache->fetch($key)) {
             $nodes = $this->getParser()->parse($this->getLexer()->tokenize((string) $expression), $names);
@@ -95,10 +109,24 @@ class ExpressionLanguage
      * @param string   $name      The function name
      * @param callable $compiler  A callable able to compile the function
      * @param callable $evaluator A callable able to evaluate the function
+     *
+     * @see ExpressionFunction
      */
     public function register($name, $compiler, $evaluator)
     {
         $this->functions[$name] = array('compiler' => $compiler, 'evaluator' => $evaluator);
+    }
+
+    public function addFunction(ExpressionFunction $function)
+    {
+        $this->register($function->getName(), $function->getCompiler(), $function->getEvaluator());
+    }
+
+    public function registerProvider(ExpressionFunctionProviderInterface $provider)
+    {
+        foreach ($provider->getFunctions() as $function) {
+            $this->addFunction($function);
+        }
     }
 
     protected function registerFunctions()

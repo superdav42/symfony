@@ -17,10 +17,6 @@ use Symfony\Component\Templating\Storage\StringStorage;
 use Symfony\Component\Templating\Helper\HelperInterface;
 use Symfony\Component\Templating\Loader\LoaderInterface;
 
-if (!defined('ENT_SUBSTITUTE')) {
-    define('ENT_SUBSTITUTE', 8);
-}
-
 /**
  * PhpEngine is an engine able to render PHP templates.
  *
@@ -32,14 +28,17 @@ class PhpEngine implements EngineInterface, \ArrayAccess
 {
     protected $loader;
     protected $current;
-    protected $helpers;
-    protected $parents;
-    protected $stack;
-    protected $charset;
-    protected $cache;
-    protected $escapers;
-    protected static $escaperCache;
-    protected $globals;
+    /**
+     * @var HelperInterface[]
+     */
+    protected $helpers = array();
+    protected $parents = array();
+    protected $stack = array();
+    protected $charset = 'UTF-8';
+    protected $cache = array();
+    protected $escapers = array();
+    protected static $escaperCache = array();
+    protected $globals = array();
     protected $parser;
 
     private $evalTemplate;
@@ -54,15 +53,10 @@ class PhpEngine implements EngineInterface, \ArrayAccess
      */
     public function __construct(TemplateNameParserInterface $parser, LoaderInterface $loader, array $helpers = array())
     {
-        $this->parser  = $parser;
-        $this->loader  = $loader;
-        $this->parents = array();
-        $this->stack   = array();
-        $this->charset = 'UTF-8';
-        $this->cache   = array();
-        $this->globals = array();
+        $this->parser = $parser;
+        $this->loader = $loader;
 
-        $this->setHelpers($helpers);
+        $this->addHelpers($helpers);
 
         $this->initializeEscapers();
         foreach ($this->escapers as $context => $escaper) {
@@ -203,7 +197,7 @@ class PhpEngine implements EngineInterface, \ArrayAccess
      *
      * @param string $name The helper name
      *
-     * @return Boolean true if the helper is defined, false otherwise
+     * @return bool true if the helper is defined, false otherwise
      *
      * @api
      */
@@ -289,7 +283,7 @@ class PhpEngine implements EngineInterface, \ArrayAccess
      *
      * @param string $name The helper name
      *
-     * @return Boolean true if the helper is defined, false otherwise
+     * @return bool true if the helper is defined, false otherwise
      *
      * @api
      */
@@ -369,6 +363,10 @@ class PhpEngine implements EngineInterface, \ArrayAccess
     public function setCharset($charset)
     {
         $this->charset = $charset;
+
+        foreach ($this->helpers as $helper) {
+            $helper->setCharset($this->charset);
+        }
     }
 
     /**
@@ -402,7 +400,7 @@ class PhpEngine implements EngineInterface, \ArrayAccess
      *
      * @param string $context The context name
      *
-     * @return mixed  $escaper A PHP callable
+     * @return mixed $escaper A PHP callable
      *
      * @throws \InvalidArgumentException
      *
@@ -459,7 +457,7 @@ class PhpEngine implements EngineInterface, \ArrayAccess
      */
     protected function initializeEscapers()
     {
-        $that = $this;
+        $flags = ENT_QUOTES | ENT_SUBSTITUTE;
 
         $this->escapers = array(
             'html' =>
@@ -470,26 +468,27 @@ class PhpEngine implements EngineInterface, \ArrayAccess
                  *
                  * @return string the escaped value
                  */
-                function ($value) use ($that) {
+                function ($value) use ($flags) {
                     // Numbers and Boolean values get turned into strings which can cause problems
                     // with type comparisons (e.g. === or is_int() etc).
-                    return is_string($value) ? htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, $that->getCharset(), false) : $value;
+                    return is_string($value) ? htmlspecialchars($value, $flags, $this->getCharset(), false) : $value;
                 },
 
             'js' =>
                 /**
                  * A function that escape all non-alphanumeric characters
-                 * into their \xHH or \uHHHH representations
+                 * into their \xHH or \uHHHH representations.
                  *
                  * @param string $value the value to escape
+                 *
                  * @return string the escaped value
                  */
-                function ($value) use ($that) {
-                    if ('UTF-8' != $that->getCharset()) {
-                        $value = $that->convertEncoding($value, 'UTF-8', $that->getCharset());
+                function ($value) {
+                    if ('UTF-8' != $this->getCharset()) {
+                        $value = $this->convertEncoding($value, 'UTF-8', $this->getCharset());
                     }
 
-                    $callback = function ($matches) use ($that) {
+                    $callback = function ($matches) {
                         $char = $matches[0];
 
                         // \xHH
@@ -498,7 +497,7 @@ class PhpEngine implements EngineInterface, \ArrayAccess
                         }
 
                         // \uHHHH
-                        $char = $that->convertEncoding($char, 'UTF-16BE', 'UTF-8');
+                        $char = $this->convertEncoding($char, 'UTF-16BE', 'UTF-8');
 
                         return '\\u'.substr('0000'.bin2hex($char), -4);
                     };
@@ -507,8 +506,8 @@ class PhpEngine implements EngineInterface, \ArrayAccess
                         throw new \InvalidArgumentException('The string to escape is not a valid UTF-8 string.');
                     }
 
-                    if ('UTF-8' != $that->getCharset()) {
-                        $value = $that->convertEncoding($value, $that->getCharset(), 'UTF-8');
+                    if ('UTF-8' != $this->getCharset()) {
+                        $value = $this->convertEncoding($value, $this->getCharset(), 'UTF-8');
                     }
 
                     return $value;

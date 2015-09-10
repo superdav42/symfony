@@ -14,7 +14,6 @@ namespace Symfony\Component\Config\Definition\Dumper;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Config\Definition\NodeInterface;
 use Symfony\Component\Config\Definition\ArrayNode;
-use Symfony\Component\Config\Definition\ScalarNode;
 use Symfony\Component\Config\Definition\EnumNode;
 use Symfony\Component\Config\Definition\PrototypedArrayNode;
 use Symfony\Component\Yaml\Inline;
@@ -45,7 +44,7 @@ class YamlReferenceDumper
 
     /**
      * @param NodeInterface $node
-     * @param integer       $depth
+     * @param int           $depth
      */
     private function writeNode(NodeInterface $node, $depth = 0)
     {
@@ -70,7 +69,12 @@ class YamlReferenceDumper
                 if ($key = $node->getKeyAttribute()) {
                     $keyNodeClass = 'Symfony\Component\Config\Definition\\'.($prototype instanceof ArrayNode ? 'ArrayNode' : 'ScalarNode');
                     $keyNode = new $keyNodeClass($key, $node);
-                    $keyNode->setInfo('Prototype');
+
+                    $info = 'Prototype';
+                    if (null !== $prototype->getInfo()) {
+                        $info .= ': '.$prototype->getInfo();
+                    }
+                    $keyNode->setInfo($info);
 
                     // add children
                     foreach ($children as $childNode) {
@@ -97,7 +101,7 @@ class YamlReferenceDumper
                 $default = $node->getDefaultValue();
 
                 if (is_array($default)) {
-                    if ($node->hasDefaultValue() && count($defaultArray = $node->getDefaultValue())) {
+                    if (count($defaultArray = $node->getDefaultValue())) {
                         $default = '';
                     } elseif (!is_array($example)) {
                         $default = '[]';
@@ -126,7 +130,7 @@ class YamlReferenceDumper
         if ($info = $node->getInfo()) {
             $this->writeLine('');
             // indenting multi-line info
-            $info = str_replace("\n", sprintf("\n%".$depth * 4 . "s# ", ' '), $info);
+            $info = str_replace("\n", sprintf("\n%".($depth * 4).'s# ', ' '), $info);
             $this->writeLine('# '.$info, $depth * 4);
         }
 
@@ -161,7 +165,7 @@ class YamlReferenceDumper
     }
 
     /**
-     * Outputs a single config reference line
+     * Outputs a single config reference line.
      *
      * @param string $text
      * @param int    $indent

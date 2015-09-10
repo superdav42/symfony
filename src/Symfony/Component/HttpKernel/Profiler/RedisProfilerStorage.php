@@ -71,7 +71,9 @@ class RedisProfilerStorage implements ProfilerStorageInterface
                 continue;
             }
 
-            list($itemToken, $itemIp, $itemMethod, $itemUrl, $itemTime, $itemParent) = explode("\t", $item, 6);
+            $values = explode("\t", $item, 7);
+            list($itemToken, $itemIp, $itemMethod, $itemUrl, $itemTime, $itemParent) = $values;
+            $statusCode = isset($values[6]) ? $values[6] : null;
 
             $itemTime = (int) $itemTime;
 
@@ -88,12 +90,13 @@ class RedisProfilerStorage implements ProfilerStorageInterface
             }
 
             $result[] = array(
-                'token'  => $itemToken,
-                'ip'     => $itemIp,
+                'token' => $itemToken,
+                'ip' => $itemIp,
                 'method' => $itemMethod,
-                'url'    => $itemUrl,
-                'time'   => $itemTime,
+                'url' => $itemUrl,
+                'time' => $itemTime,
                 'parent' => $itemParent,
+                'status_code' => $statusCode,
             );
             --$limit;
         }
@@ -158,20 +161,19 @@ class RedisProfilerStorage implements ProfilerStorageInterface
     public function write(Profile $profile)
     {
         $data = array(
-            'token'    => $profile->getToken(),
-            'parent'   => $profile->getParentToken(),
+            'token' => $profile->getToken(),
+            'parent' => $profile->getParentToken(),
             'children' => array_map(function ($p) { return $p->getToken(); }, $profile->getChildren()),
-            'data'     => $profile->getCollectors(),
-            'ip'       => $profile->getIp(),
-            'method'   => $profile->getMethod(),
-            'url'      => $profile->getUrl(),
-            'time'     => $profile->getTime(),
+            'data' => $profile->getCollectors(),
+            'ip' => $profile->getIp(),
+            'method' => $profile->getMethod(),
+            'url' => $profile->getUrl(),
+            'time' => $profile->getTime(),
         );
 
         $profileIndexed = false !== $this->getValue($this->getItemName($profile->getToken()));
 
         if ($this->setValue($this->getItemName($profile->getToken()), $data, $this->lifetime, self::REDIS_SERIALIZER_PHP)) {
-
             if (!$profileIndexed) {
                 // Add to index
                 $indexName = $this->getIndexName();
@@ -183,6 +185,7 @@ class RedisProfilerStorage implements ProfilerStorageInterface
                     $profile->getUrl(),
                     $profile->getTime(),
                     $profile->getParentToken(),
+                    $profile->getStatusCode(),
                 ))."\n";
 
                 return $this->appendValue($indexName, $indexRow, $this->lifetime);
@@ -214,7 +217,7 @@ class RedisProfilerStorage implements ProfilerStorageInterface
                 throw new \RuntimeException('RedisProfilerStorage requires that the redis extension is loaded.');
             }
 
-            $redis = new \Redis;
+            $redis = new \Redis();
             $redis->connect($data['host'], $data['port']);
 
             if (isset($data['path'])) {
@@ -234,7 +237,7 @@ class RedisProfilerStorage implements ProfilerStorageInterface
     }
 
     /**
-     * Set instance of the Redis
+     * Set instance of the Redis.
      *
      * @param \Redis $redis
      */
@@ -344,7 +347,7 @@ class RedisProfilerStorage implements ProfilerStorageInterface
      * @param int    $expiration
      * @param int    $serializer
      *
-     * @return Boolean
+     * @return bool
      */
     private function setValue($key, $value, $expiration = 0, $serializer = self::REDIS_SERIALIZER_NONE)
     {
@@ -361,7 +364,7 @@ class RedisProfilerStorage implements ProfilerStorageInterface
      * @param string $value
      * @param int    $expiration
      *
-     * @return Boolean
+     * @return bool
      */
     private function appendValue($key, $value, $expiration = 0)
     {
@@ -382,7 +385,7 @@ class RedisProfilerStorage implements ProfilerStorageInterface
      *
      * @param array $keys
      *
-     * @return Boolean
+     * @return bool
      */
     private function delete(array $keys)
     {

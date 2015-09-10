@@ -12,7 +12,7 @@
 namespace Symfony\Component\Security\Core\Tests\Authentication\Provider;
 
 use Symfony\Component\Security\Core\Authentication\Provider\RememberMeAuthenticationProvider;
-use Symfony\Component\Security\Core\Authentication\Token\RememberMeToken;
+use Symfony\Component\Security\Core\Exception\DisabledException;
 use Symfony\Component\Security\Core\Role\Role;
 
 class RememberMeAuthenticationProviderTest extends \PHPUnit_Framework_TestCase
@@ -36,24 +36,23 @@ class RememberMeAuthenticationProviderTest extends \PHPUnit_Framework_TestCase
     /**
      * @expectedException \Symfony\Component\Security\Core\Exception\BadCredentialsException
      */
-    public function testAuthenticateWhenKeysDoNotMatch()
+    public function testAuthenticateWhenSecretsDoNotMatch()
     {
-        $provider = $this->getProvider(null, 'key1');
-        $token = $this->getSupportedToken(null, 'key2');
+        $provider = $this->getProvider(null, 'secret1');
+        $token = $this->getSupportedToken(null, 'secret2');
 
         $provider->authenticate($token);
     }
 
     /**
-     * @expectedException \Symfony\Component\Security\Core\Exception\AccountExpiredException
+     * @expectedException \Symfony\Component\Security\Core\Exception\DisabledException
      */
-    public function testAuthenticateWhenPostChecksFails()
+    public function testAuthenticateWhenPreChecksFails()
     {
         $userChecker = $this->getMock('Symfony\Component\Security\Core\User\UserCheckerInterface');
         $userChecker->expects($this->once())
-                    ->method('checkPostAuth')
-                    ->will($this->throwException($this->getMock('Symfony\Component\Security\Core\Exception\AccountExpiredException', null, array(), '', false)))
-        ;
+            ->method('checkPreAuth')
+            ->will($this->throwException(new DisabledException()));
 
         $provider = $this->getProvider($userChecker);
 
@@ -65,8 +64,7 @@ class RememberMeAuthenticationProviderTest extends \PHPUnit_Framework_TestCase
         $user = $this->getMock('Symfony\Component\Security\Core\User\UserInterface');
         $user->expects($this->exactly(2))
              ->method('getRoles')
-             ->will($this->returnValue(array('ROLE_FOO')))
-        ;
+             ->will($this->returnValue(array('ROLE_FOO')));
 
         $provider = $this->getProvider();
 
@@ -79,23 +77,21 @@ class RememberMeAuthenticationProviderTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('', $authToken->getCredentials());
     }
 
-    protected function getSupportedToken($user = null, $key = 'test')
+    protected function getSupportedToken($user = null, $secret = 'test')
     {
         if (null === $user) {
             $user = $this->getMock('Symfony\Component\Security\Core\User\UserInterface');
             $user
                 ->expects($this->any())
                 ->method('getRoles')
-                ->will($this->returnValue(array()))
-            ;
+                ->will($this->returnValue(array()));
         }
 
-        $token = $this->getMock('Symfony\Component\Security\Core\Authentication\Token\RememberMeToken', array('getProviderKey'), array($user, 'foo', $key));
+        $token = $this->getMock('Symfony\Component\Security\Core\Authentication\Token\RememberMeToken', array('getProviderKey'), array($user, 'foo', $secret));
         $token
             ->expects($this->once())
             ->method('getProviderKey')
-            ->will($this->returnValue('foo'))
-        ;
+            ->will($this->returnValue('foo'));
 
         return $token;
     }

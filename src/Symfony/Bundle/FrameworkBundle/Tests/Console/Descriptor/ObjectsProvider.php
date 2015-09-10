@@ -1,11 +1,22 @@
 <?php
 
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Symfony\Bundle\FrameworkBundle\Tests\Console\Descriptor;
 
 use Symfony\Component\DependencyInjection\Alias;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
+use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
@@ -50,10 +61,20 @@ class ObjectsProvider
         return array(
             'parameters_1' => new ParameterBag(array(
                 'integer' => 12,
-                'string'  => 'Hello world!',
+                'string' => 'Hello world!',
                 'boolean' => true,
-                'array'   => array(12, 'Hello world!', true),
+                'array' => array(12, 'Hello world!', true),
             )),
+        );
+    }
+
+    public static function getContainerParameter()
+    {
+        $builder = new ContainerBuilder();
+        $builder->setParameter('database_name', 'symfony');
+
+        return array(
+            'parameter' => $builder,
         );
     }
 
@@ -74,14 +95,20 @@ class ObjectsProvider
         return array(
             'definition_1' => $definition1
                 ->setPublic(true)
-                ->setSynthetic(false),
+                ->setSynthetic(false)
+                ->setLazy(true)
+                ->setAbstract(true)
+                ->setFactory(array('Full\\Qualified\\FactoryClass', 'get')),
             'definition_2' => $definition2
                 ->setPublic(false)
                 ->setSynthetic(true)
                 ->setFile('/path/to/file')
+                ->setLazy(false)
+                ->setAbstract(false)
                 ->addTag('tag1', array('attr1' => 'val1', 'attr2' => 'val2'))
                 ->addTag('tag1', array('attr3' => 'val3'))
-                ->addTag('tag2'),
+                ->addTag('tag2')
+                ->setFactory(array(new Reference('factory.service'), 'get')),
         );
     }
 
@@ -91,5 +118,49 @@ class ObjectsProvider
             'alias_1' => new Alias('service_1', true),
             'alias_2' => new Alias('service_2', false),
         );
+    }
+
+    public static function getEventDispatchers()
+    {
+        $eventDispatcher = new EventDispatcher();
+
+        $eventDispatcher->addListener('event1', 'global_function', 255);
+        $eventDispatcher->addListener('event1', function () { return 'Closure'; }, -1);
+        $eventDispatcher->addListener('event2', new CallableClass());
+
+        return array('event_dispatcher_1' => $eventDispatcher);
+    }
+
+    public static function getCallables()
+    {
+        return array(
+            'callable_1' => 'array_key_exists',
+            'callable_2' => array('Symfony\\Bundle\\FrameworkBundle\\Tests\\Console\\Descriptor\\CallableClass', 'staticMethod'),
+            'callable_3' => array(new CallableClass(), 'method'),
+            'callable_4' => 'Symfony\\Bundle\\FrameworkBundle\\Tests\\Console\\Descriptor\\CallableClass::staticMethod',
+            'callable_5' => array('Symfony\\Bundle\\FrameworkBundle\\Tests\\Console\\Descriptor\\ExtendedCallableClass', 'parent::staticMethod'),
+            'callable_6' => function () { return 'Closure'; },
+            'callable_7' => new CallableClass(),
+        );
+    }
+}
+
+class CallableClass
+{
+    public function __invoke()
+    {
+    }
+    public static function staticMethod()
+    {
+    }
+    public function method()
+    {
+    }
+}
+
+class ExtendedCallableClass extends CallableClass
+{
+    public static function staticMethod()
+    {
     }
 }

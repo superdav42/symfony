@@ -11,13 +11,10 @@
 
 namespace Symfony\Component\HttpKernel\Tests\Bundle;
 
-use Symfony\Bundle\FrameworkBundle\DependencyInjection\Compiler\AddConsoleCommandPass;
-use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Definition;
-use Symfony\Component\HttpKernel\Bundle\Bundle;
+use Symfony\Component\HttpKernel\Tests\Fixtures\ExtensionNotValidBundle\ExtensionNotValidBundle;
+use Symfony\Component\HttpKernel\Tests\Fixtures\ExtensionPresentBundle\ExtensionPresentBundle;
 use Symfony\Component\HttpKernel\Tests\Fixtures\ExtensionAbsentBundle\ExtensionAbsentBundle;
 use Symfony\Component\HttpKernel\Tests\Fixtures\ExtensionPresentBundle\Command\FooCommand;
-use Symfony\Component\HttpKernel\Tests\Fixtures\ExtensionPresentBundle\ExtensionPresentBundle;
 
 class BundleTest extends \PHPUnit_Framework_TestCase
 {
@@ -35,23 +32,13 @@ class BundleTest extends \PHPUnit_Framework_TestCase
         $this->assertNull($bundle2->registerCommands($app));
     }
 
-    public function testRegisterCommandsIngoreCommandAsAService()
+    /**
+     * @expectedException \LogicException
+     * @expectedExceptionMessage must implement Symfony\Component\DependencyInjection\Extension\ExtensionInterface
+     */
+    public function testGetContainerExtensionWithInvalidClass()
     {
-        $container = new ContainerBuilder();
-        $container->addCompilerPass(new AddConsoleCommandPass());
-        $definition = new Definition('Symfony\Component\HttpKernel\Tests\Fixtures\ExtensionPresentBundle\Command\FooCommand');
-        $definition->addTag('console.command');
-        $container->setDefinition('my-command', $definition);
-        $container->compile();
-
-        $application = $this->getMock('Symfony\Component\Console\Application');
-        // Never called, because it's the
-        // Symfony\Bundle\FrameworkBundle\Console\Application that register
-        // commands as a service
-        $application->expects($this->never())->method('add');
-
-        $bundle = new ExtensionPresentBundle();
-        $bundle->setContainer($container);
-        $bundle->registerCommands($application);
+        $bundle = new ExtensionNotValidBundle();
+        $bundle->getContainerExtension();
     }
 }

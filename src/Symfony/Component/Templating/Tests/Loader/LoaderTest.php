@@ -12,25 +12,16 @@
 namespace Symfony\Component\Templating\Tests\Loader;
 
 use Symfony\Component\Templating\Loader\Loader;
-use Symfony\Component\Templating\TemplateNameParser;
 use Symfony\Component\Templating\TemplateReferenceInterface;
 
 class LoaderTest extends \PHPUnit_Framework_TestCase
 {
     public function testGetSetLogger()
     {
-        $loader = new ProjectTemplateLoader4(new TemplateNameParser());
+        $loader = new ProjectTemplateLoader4();
         $logger = $this->getMock('Psr\Log\LoggerInterface');
         $loader->setLogger($logger);
         $this->assertSame($logger, $loader->getLogger(), '->setLogger() sets the logger instance');
-    }
-
-    public function testGetSetDebugger()
-    {
-        $loader = new ProjectTemplateLoader4(new TemplateNameParser());
-        $debugger = $this->getMock('Symfony\Component\Templating\DebuggerInterface');
-        $loader->setDebugger($debugger);
-        $this->assertSame($debugger, $loader->getDebugger(), '->setDebugger() sets the debugger instance');
     }
 }
 

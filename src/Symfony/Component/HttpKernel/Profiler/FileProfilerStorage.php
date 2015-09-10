@@ -1,4 +1,5 @@
 <?php
+
 /*
  * This file is part of the Symfony package.
  *
@@ -61,7 +62,9 @@ class FileProfilerStorage implements ProfilerStorageInterface
 
         $result = array();
         while (count($result) < $limit && $line = $this->readLineFromFile($file)) {
-            list($csvToken, $csvIp, $csvMethod, $csvUrl, $csvTime, $csvParent) = str_getcsv($line);
+            $values = str_getcsv($line);
+            list($csvToken, $csvIp, $csvMethod, $csvUrl, $csvTime, $csvParent) = $values;
+            $csvStatusCode = isset($values[6]) ? $values[6] : null;
 
             $csvTime = (int) $csvTime;
 
@@ -78,12 +81,13 @@ class FileProfilerStorage implements ProfilerStorageInterface
             }
 
             $result[$csvToken] = array(
-                'token'  => $csvToken,
-                'ip'     => $csvIp,
+                'token' => $csvToken,
+                'ip' => $csvIp,
                 'method' => $csvMethod,
-                'url'    => $csvUrl,
-                'time'   => $csvTime,
+                'url' => $csvUrl,
+                'time' => $csvTime,
                 'parent' => $csvParent,
+                'status_code' => $csvStatusCode,
             );
         }
 
@@ -116,7 +120,7 @@ class FileProfilerStorage implements ProfilerStorageInterface
     public function read($token)
     {
         if (!$token || !file_exists($file = $this->getFilename($token))) {
-            return null;
+            return;
         }
 
         return $this->createProfileFromData($token, unserialize(file_get_contents($file)));
@@ -140,14 +144,14 @@ class FileProfilerStorage implements ProfilerStorageInterface
 
         // Store profile
         $data = array(
-            'token'    => $profile->getToken(),
-            'parent'   => $profile->getParentToken(),
+            'token' => $profile->getToken(),
+            'parent' => $profile->getParentToken(),
             'children' => array_map(function ($p) { return $p->getToken(); }, $profile->getChildren()),
-            'data'     => $profile->getCollectors(),
-            'ip'       => $profile->getIp(),
-            'method'   => $profile->getMethod(),
-            'url'      => $profile->getUrl(),
-            'time'     => $profile->getTime(),
+            'data' => $profile->getCollectors(),
+            'ip' => $profile->getIp(),
+            'method' => $profile->getMethod(),
+            'url' => $profile->getUrl(),
+            'time' => $profile->getTime(),
         );
 
         if (false === file_put_contents($file, serialize($data))) {
@@ -167,6 +171,7 @@ class FileProfilerStorage implements ProfilerStorageInterface
                 $profile->getUrl(),
                 $profile->getTime(),
                 $profile->getParentToken(),
+                $profile->getStatusCode(),
             ));
             fclose($file);
         }
@@ -215,7 +220,7 @@ class FileProfilerStorage implements ProfilerStorageInterface
         $position = ftell($file);
 
         if (0 === $position) {
-            return null;
+            return;
         }
 
         while (true) {

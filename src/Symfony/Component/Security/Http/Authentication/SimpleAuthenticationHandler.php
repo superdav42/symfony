@@ -19,7 +19,7 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authentication\SimpleAuthenticatorInterface;
 
 /**
- * Class to proxy authentication success/failure handlers
+ * Class to proxy authentication success/failure handlers.
  *
  * Events are sent to the SimpleAuthenticatorInterface if it implements
  * the right interface, otherwise (or if it fails to return a Response)
@@ -32,6 +32,7 @@ class SimpleAuthenticationHandler implements AuthenticationFailureHandlerInterfa
     protected $successHandler;
     protected $failureHandler;
     protected $simpleAuthenticator;
+    protected $logger;
 
     /**
      * Constructor.
@@ -50,13 +51,13 @@ class SimpleAuthenticationHandler implements AuthenticationFailureHandlerInterfa
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function onAuthenticationSuccess(Request $request, TokenInterface $token)
     {
         if ($this->simpleAuthenticator instanceof AuthenticationSuccessHandlerInterface) {
             if ($this->logger) {
-                $this->logger->debug(sprintf('Using the %s object as authentication success handler', get_class($this->simpleAuthenticator)));
+                $this->logger->debug('Selected an authentication success handler.', array('handler' => get_class($this->simpleAuthenticator)));
             }
 
             $response = $this->simpleAuthenticator->onAuthenticationSuccess($request, $token);
@@ -70,20 +71,20 @@ class SimpleAuthenticationHandler implements AuthenticationFailureHandlerInterfa
         }
 
         if ($this->logger) {
-            $this->logger->debug('Fallback to the default authentication success handler');
+            $this->logger->debug('Fallback to the default authentication success handler.');
         }
 
         return $this->successHandler->onAuthenticationSuccess($request, $token);
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception)
     {
         if ($this->simpleAuthenticator instanceof AuthenticationFailureHandlerInterface) {
             if ($this->logger) {
-                $this->logger->debug(sprintf('Using the %s object as authentication failure handler', get_class($this->simpleAuthenticator)));
+                $this->logger->debug('Selected an authentication failure handler.', array('handler' => get_class($this->simpleAuthenticator)));
             }
 
             $response = $this->simpleAuthenticator->onAuthenticationFailure($request, $exception);
@@ -97,7 +98,7 @@ class SimpleAuthenticationHandler implements AuthenticationFailureHandlerInterfa
         }
 
         if ($this->logger) {
-            $this->logger->debug('Fallback to the default authentication failure handler');
+            $this->logger->debug('Fallback to the default authentication failure handler.');
         }
 
         return $this->failureHandler->onAuthenticationFailure($request, $exception);

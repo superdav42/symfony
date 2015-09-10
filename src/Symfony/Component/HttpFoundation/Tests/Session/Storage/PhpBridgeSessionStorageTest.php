@@ -22,15 +22,16 @@ use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag;
  * These tests require separate processes.
  *
  * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
  */
-class PhpSessionStorageTest extends \PHPUnit_Framework_TestCase
+class PhpBridgeSessionStorageTest extends \PHPUnit_Framework_TestCase
 {
     private $savePath;
 
     protected function setUp()
     {
-        ini_set('session.save_handler', 'files');
-        ini_set('session.save_path', $this->savePath = sys_get_temp_dir().'/sf2test');
+        $this->iniSet('session.save_handler', 'files');
+        $this->iniSet('session.save_path', $this->savePath = sys_get_temp_dir().'/sf2test');
         if (!is_dir($this->savePath)) {
             mkdir($this->savePath);
         }
@@ -53,44 +54,15 @@ class PhpSessionStorageTest extends \PHPUnit_Framework_TestCase
     protected function getStorage()
     {
         $storage = new PhpBridgeSessionStorage();
-        $storage->registerBag(new AttributeBag);
+        $storage->registerBag(new AttributeBag());
 
         return $storage;
     }
 
-    public function testPhpSession53()
+    public function testPhpSession()
     {
-        if (version_compare(phpversion(), '5.4.0', '>=')) {
-            $this->markTestSkipped('Test skipped, for PHP 5.3 only.');
-        }
-
         $storage = $this->getStorage();
 
-        $this->assertFalse(isset($_SESSION));
-        $this->assertFalse($storage->getSaveHandler()->isActive());
-
-        session_start();
-        $this->assertTrue(isset($_SESSION));
-        // in PHP 5.3 we cannot reliably tell if a session has started
-        $this->assertFalse($storage->getSaveHandler()->isActive());
-        // PHP session might have started, but the storage driver has not, so false is correct here
-        $this->assertFalse($storage->isStarted());
-
-        $key = $storage->getMetadataBag()->getStorageKey();
-        $this->assertFalse(isset($_SESSION[$key]));
-        $storage->start();
-        $this->assertTrue(isset($_SESSION[$key]));
-    }
-
-    public function testPhpSession54()
-    {
-        if (version_compare(phpversion(), '5.4.0', '<')) {
-            $this->markTestSkipped('Test skipped, for PHP 5.4 only.');
-        }
-
-        $storage = $this->getStorage();
-
-        $this->assertFalse(isset($_SESSION));
         $this->assertFalse($storage->getSaveHandler()->isActive());
         $this->assertFalse($storage->isStarted());
 

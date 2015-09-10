@@ -32,7 +32,7 @@ class Button implements \IteratorAggregate, FormInterface
     private $config;
 
     /**
-     * @var Boolean
+     * @var bool
      */
     private $submitted = false;
 
@@ -51,7 +51,7 @@ class Button implements \IteratorAggregate, FormInterface
      *
      * @param mixed $offset
      *
-     * @return Boolean Always returns false.
+     * @return bool Always returns false.
      */
     public function offsetExists($offset)
     {
@@ -152,7 +152,7 @@ class Button implements \IteratorAggregate, FormInterface
      *
      * @param string $name
      *
-     * @return Boolean Always returns false.
+     * @return bool Always returns false.
      */
     public function has($name)
     {
@@ -184,9 +184,9 @@ class Button implements \IteratorAggregate, FormInterface
     /**
      * {@inheritdoc}
      */
-    public function getErrors()
+    public function getErrors($deep = false, $flatten = true)
     {
-        return array();
+        return new FormErrorIterator($this, array());
     }
 
     /**
@@ -194,9 +194,7 @@ class Button implements \IteratorAggregate, FormInterface
      *
      * This method should not be invoked.
      *
-     * @param string $modelData
-     *
-     * @throws BadMethodCallException
+     * @param mixed $modelData
      */
     public function setData($modelData)
     {
@@ -206,32 +204,23 @@ class Button implements \IteratorAggregate, FormInterface
 
     /**
      * Unsupported method.
-     *
-     * @return null Always returns null.
      */
     public function getData()
     {
-        return null;
     }
 
     /**
      * Unsupported method.
-     *
-     * @return null Always returns null.
      */
     public function getNormData()
     {
-        return null;
     }
 
     /**
      * Unsupported method.
-     *
-     * @return null Always returns null.
      */
     public function getViewData()
     {
-        return null;
     }
 
     /**
@@ -257,7 +246,7 @@ class Button implements \IteratorAggregate, FormInterface
     /**
      * Returns whether the button is submitted.
      *
-     * @return Boolean true if the button was submitted.
+     * @return bool true if the button was submitted.
      */
     public function isSubmitted()
     {
@@ -276,12 +265,9 @@ class Button implements \IteratorAggregate, FormInterface
 
     /**
      * Unsupported method.
-     *
-     * @return null Always returns null.
      */
     public function getPropertyPath()
     {
-        return null;
     }
 
     /**
@@ -299,7 +285,7 @@ class Button implements \IteratorAggregate, FormInterface
     /**
      * Unsupported method.
      *
-     * @return Boolean Always returns true.
+     * @return bool Always returns true.
      */
     public function isValid()
     {
@@ -309,7 +295,7 @@ class Button implements \IteratorAggregate, FormInterface
     /**
      * Unsupported method.
      *
-     * @return Boolean Always returns false.
+     * @return bool Always returns false.
      */
     public function isRequired()
     {
@@ -321,13 +307,17 @@ class Button implements \IteratorAggregate, FormInterface
      */
     public function isDisabled()
     {
-        return $this->config->getDisabled();
+        if (null === $this->parent || !$this->parent->isDisabled()) {
+            return $this->config->getDisabled();
+        }
+
+        return true;
     }
 
     /**
      * Unsupported method.
      *
-     * @return Boolean Always returns true.
+     * @return bool Always returns true.
      */
     public function isEmpty()
     {
@@ -337,11 +327,18 @@ class Button implements \IteratorAggregate, FormInterface
     /**
      * Unsupported method.
      *
-     * @return Boolean Always returns true.
+     * @return bool Always returns true.
      */
     public function isSynchronized()
     {
         return true;
+    }
+
+    /**
+     * Unsupported method.
+     */
+    public function getTransformationFailure()
+    {
     }
 
     /**
@@ -370,7 +367,7 @@ class Button implements \IteratorAggregate, FormInterface
      * Submits data to the button.
      *
      * @param null|string $submittedData The data.
-     * @param Boolean     $clearMissing  Not used.
+     * @param bool        $clearMissing  Not used.
      *
      * @return Button The button instance
      *
@@ -426,7 +423,7 @@ class Button implements \IteratorAggregate, FormInterface
     /**
      * Unsupported method.
      *
-     * @return integer Always returns 0.
+     * @return int Always returns 0.
      */
     public function count()
     {

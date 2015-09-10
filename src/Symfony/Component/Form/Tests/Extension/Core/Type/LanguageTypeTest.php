@@ -11,10 +11,11 @@
 
 namespace Symfony\Component\Form\Tests\Extension\Core\Type;
 
-use Symfony\Component\Form\Extension\Core\View\ChoiceView;
+use Symfony\Component\Form\Test\TypeTestCase as TestCase;
+use Symfony\Component\Form\ChoiceList\View\ChoiceView;
 use Symfony\Component\Intl\Util\IntlTestHelper;
 
-class LanguageTypeTest extends TypeTestCase
+class LanguageTypeTest extends TestCase
 {
     protected function setUp()
     {
@@ -25,20 +26,20 @@ class LanguageTypeTest extends TypeTestCase
 
     public function testCountriesAreSelectable()
     {
-        $form = $this->factory->create('language');
+        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\LanguageType');
         $view = $form->createView();
         $choices = $view->vars['choices'];
 
         $this->assertContains(new ChoiceView('en', 'en', 'English'), $choices, '', false, false);
         $this->assertContains(new ChoiceView('en_GB', 'en_GB', 'British English'), $choices, '', false, false);
-        $this->assertContains(new ChoiceView('en_US', 'en_US', 'U.S. English'), $choices, '', false, false);
+        $this->assertContains(new ChoiceView('en_US', 'en_US', 'American English'), $choices, '', false, false);
         $this->assertContains(new ChoiceView('fr', 'fr', 'French'), $choices, '', false, false);
         $this->assertContains(new ChoiceView('my', 'my', 'Burmese'), $choices, '', false, false);
     }
 
     public function testMultipleLanguagesIsNotIncluded()
     {
-        $form = $this->factory->create('language', 'language');
+        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\LanguageType', 'Symfony\Component\Form\Extension\Core\Type\LanguageType');
         $view = $form->createView();
         $choices = $view->vars['choices'];
 

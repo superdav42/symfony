@@ -17,7 +17,7 @@ class UserTest extends \PHPUnit_Framework_TestCase
 {
     /**
      * @covers Symfony\Component\Security\Core\User\User::__construct
-     * @expectedException InvalidArgumentException
+     * @expectedException \InvalidArgumentException
      */
     public function testConstructorException()
     {
@@ -122,5 +122,14 @@ class UserTest extends \PHPUnit_Framework_TestCase
         $user = new User('fabien', 'superpass');
         $user->eraseCredentials();
         $this->assertEquals('superpass', $user->getPassword());
+    }
+
+    /**
+     * @covers Symfony\Component\Security\Core\User\User::__toString
+     */
+    public function testToString()
+    {
+        $user = new User('fabien', 'superpass');
+        $this->assertEquals('fabien', (string) $user);
     }
 }

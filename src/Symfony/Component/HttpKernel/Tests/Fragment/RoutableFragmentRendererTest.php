@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\Component\HttpKernel\Fragment\Tests\FragmentRenderer;
+namespace Symfony\Component\HttpKernel\Tests\Fragment;
 
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Controller\ControllerReference;
@@ -55,7 +55,7 @@ class RoutableFragmentRendererTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException LogicException
+     * @expectedException \LogicException
      * @dataProvider      getGenerateFragmentUriDataWithNonScalar
      */
     public function testGenerateFragmentUriWithNonScalar($controller)
@@ -89,10 +89,5 @@ class Foo
     public function getFoo()
     {
         return $this->foo;
-    }
-
-    public function doGenerateFragmentUri(ControllerReference $reference, Request $request, $absolute = false, $strict = true)
-    {
-        return parent::generateFragmentUri($reference, $request, $absolute, $strict);
     }
 }

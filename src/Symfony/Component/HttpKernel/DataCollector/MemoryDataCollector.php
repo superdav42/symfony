@@ -11,7 +11,6 @@
 
 namespace Symfony\Component\HttpKernel\DataCollector;
 
-use Symfony\Component\HttpKernel\DataCollector\LateDataCollectorInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -25,7 +24,7 @@ class MemoryDataCollector extends DataCollector implements LateDataCollectorInte
     public function __construct()
     {
         $this->data = array(
-            'memory'       => 0,
+            'memory' => 0,
             'memory_limit' => $this->convertToBytes(ini_get('memory_limit')),
         );
     }
@@ -49,7 +48,7 @@ class MemoryDataCollector extends DataCollector implements LateDataCollectorInte
     /**
      * Gets the memory.
      *
-     * @return integer The memory
+     * @return int The memory
      */
     public function getMemory()
     {
@@ -59,7 +58,7 @@ class MemoryDataCollector extends DataCollector implements LateDataCollectorInte
     /**
      * Gets the PHP memory limit.
      *
-     * @return integer The memory limit
+     * @return int The memory limit
      */
     public function getMemoryLimit()
     {
@@ -95,7 +94,7 @@ class MemoryDataCollector extends DataCollector implements LateDataCollectorInte
         } elseif (0 === strpos($max, '0')) {
             $max = intval($max, 8);
         } else {
-            $max = intval($max);
+            $max = (int) $max;
         }
 
         switch (substr($memoryLimit, -1)) {

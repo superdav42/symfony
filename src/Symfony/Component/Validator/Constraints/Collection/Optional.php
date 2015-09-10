@@ -11,15 +11,18 @@
 
 namespace Symfony\Component\Validator\Constraints\Collection;
 
+@trigger_error('The '.__NAMESPACE__.'\Optional class is deprecated since version 2.3 and will be removed in 3.0. Use the Symfony\Component\Validator\Constraints\Optional class instead.', E_USER_DEPRECATED);
+
 use Symfony\Component\Validator\Constraints\Optional as BaseOptional;
 
 /**
  * @Annotation
+ * @Target({"PROPERTY", "METHOD", "ANNOTATION"})
  *
  * @author Bernhard Schussek <bschussek@gmail.com>
  *
- * @deprecated Deprecated in 2.3, to be removed in 3.0. Use
- *             {@link \Symfony\Component\Validator\Constraints\Optional} instead.
+ * @deprecated since version 2.3, to be removed in 3.0.
+ *             Use {@link \Symfony\Component\Validator\Constraints\Optional} instead.
  */
 class Optional extends BaseOptional
 {

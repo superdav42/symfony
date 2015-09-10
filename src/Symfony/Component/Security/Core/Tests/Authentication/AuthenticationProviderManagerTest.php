@@ -20,11 +20,21 @@ use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 class AuthenticationProviderManagerTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * @expectedException InvalidArgumentException
+     * @expectedException \InvalidArgumentException
      */
     public function testAuthenticateWithoutProviders()
     {
         new AuthenticationProviderManager(array());
+    }
+
+    /**
+     * @expectedException \InvalidArgumentException
+     */
+    public function testAuthenticateWithProvidersWithIncorrectInterface()
+    {
+        new AuthenticationProviderManager(array(
+            new \stdClass(),
+        ));
     }
 
     public function testAuthenticateWhenNoProviderSupportsToken()
@@ -129,7 +139,7 @@ class AuthenticationProviderManagerTest extends \PHPUnit_Framework_TestCase
         } elseif (null !== $exception) {
             $provider->expects($this->once())
                      ->method('authenticate')
-                     ->will($this->throwException($this->getMock($exception, null, array(), '', false)))
+                     ->will($this->throwException($this->getMock($exception, null, array(), '')))
             ;
         }
 

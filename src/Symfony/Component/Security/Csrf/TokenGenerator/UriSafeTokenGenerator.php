@@ -18,6 +18,7 @@ use Symfony\Component\Security\Core\Util\SecureRandom;
  * Generates CSRF tokens.
  *
  * @since  2.4
+ *
  * @author Bernhard Schussek <bernhard.schussek@symfony.com>
  */
 class UriSafeTokenGenerator implements TokenGeneratorInterface
@@ -32,7 +33,7 @@ class UriSafeTokenGenerator implements TokenGeneratorInterface
     /**
      * The amount of entropy collected for each token (in bits).
      *
-     * @var integer
+     * @var int
      */
     private $entropy;
 
@@ -41,7 +42,7 @@ class UriSafeTokenGenerator implements TokenGeneratorInterface
      *
      * @param SecureRandomInterface|null $random  The random value generator used for
      *                                            generating entropy
-     * @param integer                    $entropy The amount of entropy collected for
+     * @param int                        $entropy The amount of entropy collected for
      *                                            each token (in bits)
      */
     public function __construct(SecureRandomInterface $random = null, $entropy = 256)

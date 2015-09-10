@@ -24,6 +24,8 @@ class Lexer
      * @param string $expression The expression to tokenize
      *
      * @return TokenStream A token stream instance
+     *
+     * @throws SyntaxError
      */
     public function tokenize($expression)
     {
@@ -34,8 +36,10 @@ class Lexer
         $end = strlen($expression);
 
         while ($cursor < $end) {
-            while (' ' == $expression[$cursor]) {
+            if (' ' == $expression[$cursor]) {
                 ++$cursor;
+
+                continue;
             }
 
             if (preg_match('/[0-9]+(?:\.[0-9]+)?/A', $expression, $match, null, $cursor)) {
@@ -65,11 +69,7 @@ class Lexer
 
                 $tokens[] = new Token(Token::PUNCTUATION_TYPE, $expression[$cursor], $cursor + 1);
                 ++$cursor;
-            } elseif (false !== strpos('.,?:', $expression[$cursor])) {
-                // punctuation
-                $tokens[] = new Token(Token::PUNCTUATION_TYPE, $expression[$cursor], $cursor + 1);
-                ++$cursor;
-            } elseif (preg_match('/"([^#"\\\\]*(?:\\\\.[^#"\\\\]*)*)"|\'([^\'\\\\]*(?:\\\\.[^\'\\\\]*)*)\'/As', $expression, $match, null, $cursor)) {
+            } elseif (preg_match('/"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"|\'([^\'\\\\]*(?:\\\\.[^\'\\\\]*)*)\'/As', $expression, $match, null, $cursor)) {
                 // strings
                 $tokens[] = new Token(Token::STRING_TYPE, stripcslashes(substr($match[0], 1, -1)), $cursor + 1);
                 $cursor += strlen($match[0]);
@@ -77,6 +77,10 @@ class Lexer
                 // operators
                 $tokens[] = new Token(Token::OPERATOR_TYPE, $match[0], $cursor + 1);
                 $cursor += strlen($match[0]);
+            } elseif (false !== strpos('.,?:', $expression[$cursor])) {
+                // punctuation
+                $tokens[] = new Token(Token::PUNCTUATION_TYPE, $expression[$cursor], $cursor + 1);
+                ++$cursor;
             } elseif (preg_match('/[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*/A', $expression, $match, null, $cursor)) {
                 // names
                 $tokens[] = new Token(Token::NAME_TYPE, $match[0], $cursor + 1);

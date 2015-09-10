@@ -35,7 +35,7 @@ use Symfony\Component\HttpKernel\Controller\ControllerReference;
 class FragmentHandler
 {
     private $debug;
-    private $renderers;
+    private $renderers = array();
     private $request;
     private $requestStack;
 
@@ -45,13 +45,12 @@ class FragmentHandler
      * RequestStack will become required in 3.0.
      *
      * @param FragmentRendererInterface[] $renderers    An array of FragmentRendererInterface instances
-     * @param Boolean                     $debug        Whether the debug mode is enabled or not
+     * @param bool                        $debug        Whether the debug mode is enabled or not
      * @param RequestStack|null           $requestStack The Request stack that controls the lifecycle of requests
      */
     public function __construct(array $renderers = array(), $debug = false, RequestStack $requestStack = null)
     {
         $this->requestStack = $requestStack;
-        $this->renderers = array();
         foreach ($renderers as $renderer) {
             $this->addRenderer($renderer);
         }
@@ -69,22 +68,6 @@ class FragmentHandler
     }
 
     /**
-     * Sets the current Request.
-     *
-     * This method was used to synchronize the Request, but as the HttpKernel
-     * is doing that automatically now, you should never call it directly.
-     * It is kept public for BC with the 2.3 version.
-     *
-     * @param Request|null $request A Request instance
-     *
-     * @deprecated Deprecated since version 2.4, to be removed in 3.0.
-     */
-    public function setRequest(Request $request = null)
-    {
-        $this->request = $request;
-    }
-
-    /**
      * Renders a URI and returns the Response content.
      *
      * Available options:
@@ -98,7 +81,7 @@ class FragmentHandler
      * @return string|null The Response content or null when the Response is streamed
      *
      * @throws \InvalidArgumentException when the renderer does not exist
-     * @throws \LogicException           when the Request is not successful
+     * @throws \LogicException           when no master request is being handled
      */
     public function render($uri, $renderer = 'inline', array $options = array())
     {

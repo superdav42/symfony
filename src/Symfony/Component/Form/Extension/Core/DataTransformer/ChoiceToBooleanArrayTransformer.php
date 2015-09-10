@@ -11,12 +11,17 @@
 
 namespace Symfony\Component\Form\Extension\Core\DataTransformer;
 
-use Symfony\Component\Form\Extension\Core\ChoiceList\ChoiceListInterface;
+@trigger_error('The class '.__NAMESPACE__.'\ChoiceToBooleanArrayTransformer is deprecated since version 2.7 and will be removed in 3.0. Use Symfony\Component\Form\Extension\Core\DataMapper\RadioListMapper instead.', E_USER_DEPRECATED);
+
+use Symfony\Component\Form\ChoiceList\ChoiceListInterface;
 use Symfony\Component\Form\DataTransformerInterface;
 use Symfony\Component\Form\Exception\TransformationFailedException;
 
 /**
  * @author Bernhard Schussek <bschussek@gmail.com>
+ *
+ * @deprecated since version 2.7, to be removed in 3.0.
+ *             Use {@link \Symfony\Component\Form\ChoiceList\LazyChoiceList} instead.
  */
 class ChoiceToBooleanArrayTransformer implements DataTransformerInterface
 {
@@ -28,7 +33,7 @@ class ChoiceToBooleanArrayTransformer implements DataTransformerInterface
      * Constructor.
      *
      * @param ChoiceListInterface $choiceList
-     * @param Boolean             $placeholderPresent
+     * @param bool                $placeholderPresent
      */
     public function __construct(ChoiceListInterface $choiceList, $placeholderPresent)
     {
@@ -106,13 +111,11 @@ class ChoiceToBooleanArrayTransformer implements DataTransformerInterface
                 if (isset($choices[$i])) {
                     return $choices[$i] === '' ? null : $choices[$i];
                 } elseif ($this->placeholderPresent && 'placeholder' === $i) {
-                    return null;
+                    return;
                 } else {
                     throw new TransformationFailedException(sprintf('The choice "%s" does not exist', $i));
                 }
             }
         }
-
-        return null;
     }
 }

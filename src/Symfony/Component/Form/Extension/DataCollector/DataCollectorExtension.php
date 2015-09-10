@@ -18,6 +18,7 @@ use Symfony\Component\Form\AbstractExtension;
  * Extension for collecting data of the forms on a page.
  *
  * @since  2.4
+ *
  * @author Robert Schönthal <robert.schoenthal@gmail.com>
  * @author Bernhard Schussek <bschussek@gmail.com>
  */
@@ -34,12 +35,12 @@ class DataCollectorExtension extends AbstractExtension
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     protected function loadTypeExtensions()
     {
         return array(
-            new Type\DataCollectorTypeExtension($this->dataCollector)
+            new Type\DataCollectorTypeExtension($this->dataCollector),
         );
     }
 }

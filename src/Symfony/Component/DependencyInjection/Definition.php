@@ -25,27 +25,25 @@ class Definition
 {
     private $class;
     private $file;
-    private $factoryClass;
-    private $factoryMethod;
-    private $factoryService;
-    private $scope;
-    private $properties;
-    private $calls;
+    private $factory;
+    private $shared = true;
+    private $properties = array();
+    private $calls = array();
     private $configurator;
-    private $tags;
-    private $public;
-    private $synthetic;
-    private $abstract;
-    private $synchronized;
-    private $lazy;
+    private $tags = array();
+    private $public = true;
+    private $synthetic = false;
+    private $abstract = false;
+    private $lazy = false;
+    private $decoratedService;
 
     protected $arguments;
 
     /**
      * Constructor.
      *
-     * @param string $class     The service class
-     * @param array  $arguments An array of arguments to pass to the service constructor
+     * @param string|null $class     The service class
+     * @param array       $arguments An array of arguments to pass to the service constructor
      *
      * @api
      */
@@ -53,100 +51,70 @@ class Definition
     {
         $this->class = $class;
         $this->arguments = $arguments;
-        $this->calls = array();
-        $this->scope = ContainerInterface::SCOPE_CONTAINER;
-        $this->tags = array();
-        $this->public = true;
-        $this->synthetic = false;
-        $this->synchronized = false;
-        $this->lazy = false;
-        $this->abstract = false;
-        $this->properties = array();
     }
 
     /**
-     * Sets the name of the class that acts as a factory using the factory method,
-     * which will be invoked statically.
+     * Sets a factory.
      *
-     * @param string $factoryClass The factory class name
+     * @param string|array $factory A PHP function or an array containing a class/Reference and a method to call
      *
      * @return Definition The current instance
-     *
-     * @api
      */
-    public function setFactoryClass($factoryClass)
+    public function setFactory($factory)
     {
-        $this->factoryClass = $factoryClass;
+        if (is_string($factory) && strpos($factory, '::') !== false) {
+            $factory = explode('::', $factory, 2);
+        }
+
+        $this->factory = $factory;
 
         return $this;
     }
 
     /**
-     * Gets the factory class.
+     * Gets the factory.
      *
-     * @return string The factory class name
-     *
-     * @api
+     * @return string|array The PHP function or an array containing a class/Reference and a method to call
      */
-    public function getFactoryClass()
+    public function getFactory()
     {
-        return $this->factoryClass;
+        return $this->factory;
     }
 
     /**
-     * Sets the factory method able to create an instance of this class.
+     * Sets the service that this service is decorating.
      *
-     * @param string $factoryMethod The factory method name
+     * @param null|string $id        The decorated service id, use null to remove decoration
+     * @param null|string $renamedId The new decorated service id
+     * @param int         $priority  The priority of decoration
      *
      * @return Definition The current instance
      *
-     * @api
+     * @throws InvalidArgumentException In case the decorated service id and the new decorated service id are equals.
      */
-    public function setFactoryMethod($factoryMethod)
+    public function setDecoratedService($id, $renamedId = null, $priority = 0)
     {
-        $this->factoryMethod = $factoryMethod;
+        if ($renamedId && $id == $renamedId) {
+            throw new \InvalidArgumentException(sprintf('The decorated service inner name for "%s" must be different than the service name itself.', $id));
+        }
+
+        if (null === $id) {
+            $this->decoratedService = null;
+        } else {
+            $this->decoratedService = array($id, $renamedId, (int) $priority);
+        }
 
         return $this;
     }
 
     /**
-     * Gets the factory method.
+     * Gets the service that decorates this service.
      *
-     * @return string The factory method name
-     *
-     * @api
+     * @return null|array An array composed of the decorated service id, the new id for it and the priority of decoration, null if no service is decorated
      */
-    public function getFactoryMethod()
+    public function getDecoratedService()
     {
-        return $this->factoryMethod;
-    }
-
-    /**
-     * Sets the name of the service that acts as a factory using the factory method.
-     *
-     * @param string $factoryService The factory service id
-     *
-     * @return Definition The current instance
-     *
-     * @api
-     */
-    public function setFactoryService($factoryService)
-    {
-        $this->factoryService = $factoryService;
-
-        return $this;
-    }
-
-    /**
-     * Gets the factory service id.
-     *
-     * @return string The factory service id
-     *
-     * @api
-     */
-    public function getFactoryService()
-    {
-        return $this->factoryService;
+        return $this->decoratedService;
     }
 
     /**
@@ -168,7 +136,7 @@ class Definition
     /**
      * Gets the service class.
      *
-     * @return string The service class
+     * @return string|null The service class
      *
      * @api
      */
@@ -238,10 +206,10 @@ class Definition
     }
 
     /**
-     * Sets a specific argument
+     * Sets a specific argument.
      *
-     * @param integer $index
-     * @param mixed   $argument
+     * @param int   $index
+     * @param mixed $argument
      *
      * @return Definition The current instance
      *
@@ -275,7 +243,7 @@ class Definition
     /**
      * Gets an argument to pass to the service constructor/factory method.
      *
-     * @param integer $index
+     * @param int $index
      *
      * @return mixed The argument value
      *
@@ -359,7 +327,7 @@ class Definition
      *
      * @param string $method The method name to search for
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -387,7 +355,7 @@ class Definition
     }
 
     /**
-     * Sets tags for this definition
+     * Sets tags for this definition.
      *
      * @param array $tags
      *
@@ -446,11 +414,11 @@ class Definition
     }
 
     /**
-     * Whether this definition has a tag with the given name
+     * Whether this definition has a tag with the given name.
      *
      * @param string $name
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -508,7 +476,7 @@ class Definition
     /**
      * Gets the file to require before creating the service.
      *
-     * @return string The full pathname to include
+     * @return string|null The full pathname to include
      *
      * @api
      */
@@ -518,37 +486,37 @@ class Definition
     }
 
     /**
-     * Sets the scope of the service
+     * Sets if the service must be shared or not.
      *
-     * @param string $scope Whether the service must be shared or not
+     * @param bool $shared Whether the service must be shared or not
      *
      * @return Definition The current instance
      *
      * @api
      */
-    public function setScope($scope)
+    public function setShared($shared)
     {
-        $this->scope = $scope;
+        $this->shared = (bool) $shared;
 
         return $this;
     }
 
     /**
-     * Returns the scope of the service
+     * Whether this service is shared.
      *
-     * @return string
+     * @return bool
      *
      * @api
      */
-    public function getScope()
+    public function isShared()
     {
-        return $this->scope;
+        return $this->shared;
     }
 
     /**
      * Sets the visibility of this service.
      *
-     * @param Boolean $boolean
+     * @param bool $boolean
      *
      * @return Definition The current instance
      *
@@ -556,15 +524,15 @@ class Definition
      */
     public function setPublic($boolean)
     {
-        $this->public = (Boolean) $boolean;
+        $this->public = (bool) $boolean;
 
         return $this;
     }
 
     /**
-     * Whether this service is public facing
+     * Whether this service is public facing.
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -574,43 +542,15 @@ class Definition
     }
 
     /**
-     * Sets the synchronized flag of this service.
-     *
-     * @param Boolean $boolean
-     *
-     * @return Definition The current instance
-     *
-     * @api
-     */
-    public function setSynchronized($boolean)
-    {
-        $this->synchronized = (Boolean) $boolean;
-
-        return $this;
-    }
-
-    /**
-     * Whether this service is synchronized.
-     *
-     * @return Boolean
-     *
-     * @api
-     */
-    public function isSynchronized()
-    {
-        return $this->synchronized;
-    }
-
-    /**
      * Sets the lazy flag of this service.
      *
-     * @param Boolean $lazy
+     * @param bool $lazy
      *
      * @return Definition The current instance
      */
     public function setLazy($lazy)
     {
-        $this->lazy = (Boolean) $lazy;
+        $this->lazy = (bool) $lazy;
 
         return $this;
     }
@@ -618,7 +558,7 @@ class Definition
     /**
      * Whether this service is lazy.
      *
-     * @return Boolean
+     * @return bool
      */
     public function isLazy()
     {
@@ -629,7 +569,7 @@ class Definition
      * Sets whether this definition is synthetic, that is not constructed by the
      * container, but dynamically injected.
      *
-     * @param Boolean $boolean
+     * @param bool $boolean
      *
      * @return Definition the current instance
      *
@@ -637,7 +577,7 @@ class Definition
      */
     public function setSynthetic($boolean)
     {
-        $this->synthetic = (Boolean) $boolean;
+        $this->synthetic = (bool) $boolean;
 
         return $this;
     }
@@ -646,7 +586,7 @@ class Definition
      * Whether this definition is synthetic, that is not constructed by the
      * container, but dynamically injected.
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -659,7 +599,7 @@ class Definition
      * Whether this definition is abstract, that means it merely serves as a
      * template for other definitions.
      *
-     * @param Boolean $boolean
+     * @param bool $boolean
      *
      * @return Definition the current instance
      *
@@ -667,7 +607,7 @@ class Definition
      */
     public function setAbstract($boolean)
     {
-        $this->abstract = (Boolean) $boolean;
+        $this->abstract = (bool) $boolean;
 
         return $this;
     }
@@ -676,7 +616,7 @@ class Definition
      * Whether this definition is abstract, that means it merely serves as a
      * template for other definitions.
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -704,7 +644,7 @@ class Definition
     /**
      * Gets the configurator to call after the service is fully initialized.
      *
-     * @return callable The PHP callable to call
+     * @return callable|null The PHP callable to call
      *
      * @api
      */

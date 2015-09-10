@@ -18,8 +18,6 @@ use Symfony\Bundle\FrameworkBundle\Tests\Templating\Helper\Fixtures\StubTemplate
 use Symfony\Bundle\FrameworkBundle\Tests\Templating\Helper\Fixtures\StubTranslator;
 use Symfony\Component\Templating\PhpEngine;
 use Symfony\Component\Templating\Loader\FilesystemLoader;
-
-// should probably be moved to the Translation component
 use Symfony\Bundle\FrameworkBundle\Templating\Helper\TranslatorHelper;
 
 class FormHelperDivLayoutTest extends AbstractDivLayoutTest
@@ -62,11 +60,6 @@ class FormHelperDivLayoutTest extends AbstractDivLayoutTest
     protected function renderForm(FormView $view, array $vars = array())
     {
         return (string) $this->engine->get('form')->form($view, $vars);
-    }
-
-    protected function renderEnctype(FormView $view)
-    {
-        return (string) $this->engine->get('form')->enctype($view);
     }
 
     protected function renderLabel(FormView $view, $label = null, array $vars = array())
@@ -112,14 +105,14 @@ class FormHelperDivLayoutTest extends AbstractDivLayoutTest
     public static function themeBlockInheritanceProvider()
     {
         return array(
-            array(array('TestBundle:Parent'))
+            array(array('TestBundle:Parent')),
         );
     }
 
     public static function themeInheritanceProvider()
     {
         return array(
-            array(array('TestBundle:Parent'), array('TestBundle:Child'))
+            array(array('TestBundle:Parent'), array('TestBundle:Child')),
         );
     }
 }

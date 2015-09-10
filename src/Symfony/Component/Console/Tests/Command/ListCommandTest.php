@@ -22,7 +22,7 @@ class ListCommandTest extends \PHPUnit_Framework_TestCase
         $commandTester = new CommandTester($command = $application->get('list'));
         $commandTester->execute(array('command' => $command->getName()), array('decorated' => false));
 
-        $this->assertRegExp('/help   Displays help for a command/', $commandTester->getDisplay(), '->execute() returns a list of available commands');
+        $this->assertRegExp('/help\s{2,}Displays help for a command/', $commandTester->getDisplay(), '->execute() returns a list of available commands');
     }
 
     public function testExecuteListsCommandsWithXmlOption()
@@ -49,8 +49,7 @@ EOF;
 
     public function testExecuteListsCommandsWithNamespaceArgument()
     {
-
-        require_once(realpath(__DIR__.'/../Fixtures/FooCommand.php'));
+        require_once realpath(__DIR__.'/../Fixtures/FooCommand.php');
         $application = new Application();
         $application->add(new \FooCommand());
         $commandTester = new CommandTester($command = $application->get('list'));

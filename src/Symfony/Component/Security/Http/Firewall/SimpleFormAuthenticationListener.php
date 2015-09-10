@@ -22,8 +22,9 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationFailureHandlerInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationSuccessHandlerInterface;
 use Symfony\Component\Security\Core\Authentication\AuthenticationManagerInterface;
-use Symfony\Component\Security\Core\Authentication\SimpleFormAuthenticatorInterface;
-use Symfony\Component\Security\Core\SecurityContextInterface;
+use Symfony\Component\Security\Http\Authentication\SimpleFormAuthenticatorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Security\Http\HttpUtils;
 use Symfony\Component\Security\Http\Session\SessionAuthenticationStrategyInterface;
 use Psr\Log\LoggerInterface;
@@ -39,7 +40,7 @@ class SimpleFormAuthenticationListener extends AbstractAuthenticationListener
     /**
      * Constructor.
      *
-     * @param SecurityContextInterface               $securityContext       A SecurityContext instance
+     * @param TokenStorageInterface                  $tokenStorage          A TokenStorageInterface instance
      * @param AuthenticationManagerInterface         $authenticationManager An AuthenticationManagerInterface instance
      * @param SessionAuthenticationStrategyInterface $sessionStrategy
      * @param HttpUtils                              $httpUtils             An HttpUtilsInterface instance
@@ -50,10 +51,13 @@ class SimpleFormAuthenticationListener extends AbstractAuthenticationListener
      *                                                                      successful, or failed authentication attempt
      * @param LoggerInterface                        $logger                A LoggerInterface instance
      * @param EventDispatcherInterface               $dispatcher            An EventDispatcherInterface instance
-     * @param SimpleFormAuthenticatorInterface       $simpleAuthenticator   A SimpleFormAuthenticatorInterface instance
      * @param CsrfTokenManagerInterface              $csrfTokenManager      A CsrfTokenManagerInterface instance
+     * @param SimpleFormAuthenticatorInterface       $simpleAuthenticator   A SimpleFormAuthenticatorInterface instance
+     *
+     * @throws \InvalidArgumentException In case no simple authenticator is provided
+     * @throws InvalidArgumentException  In case an invalid CSRF token manager is passed
      */
-    public function __construct(SecurityContextInterface $securityContext, AuthenticationManagerInterface $authenticationManager, SessionAuthenticationStrategyInterface $sessionStrategy, HttpUtils $httpUtils, $providerKey, AuthenticationSuccessHandlerInterface $successHandler, AuthenticationFailureHandlerInterface $failureHandler, array $options = array(), LoggerInterface $logger = null, EventDispatcherInterface $dispatcher = null, CsrfTokenManagerInterface $csrfTokenManager = null, SimpleFormAuthenticatorInterface $simpleAuthenticator = null)
+    public function __construct(TokenStorageInterface $tokenStorage, AuthenticationManagerInterface $authenticationManager, SessionAuthenticationStrategyInterface $sessionStrategy, HttpUtils $httpUtils, $providerKey, AuthenticationSuccessHandlerInterface $successHandler, AuthenticationFailureHandlerInterface $failureHandler, array $options = array(), LoggerInterface $logger = null, EventDispatcherInterface $dispatcher = null, $csrfTokenManager = null, SimpleFormAuthenticatorInterface $simpleAuthenticator = null)
     {
         if (!$simpleAuthenticator) {
             throw new \InvalidArgumentException('Missing simple authenticator');
@@ -71,11 +75,12 @@ class SimpleFormAuthenticationListener extends AbstractAuthenticationListener
         $options = array_merge(array(
             'username_parameter' => '_username',
             'password_parameter' => '_password',
-            'csrf_parameter'     => '_csrf_token',
-            'intention'          => 'authenticate',
-            'post_only'          => true,
+            'csrf_parameter' => '_csrf_token',
+            'intention' => 'authenticate',
+            'post_only' => true,
         ), $options);
-        parent::__construct($securityContext, $authenticationManager, $sessionStrategy, $httpUtils, $providerKey, $successHandler, $failureHandler, $options, $logger, $dispatcher);
+
+        parent::__construct($tokenStorage, $authenticationManager, $sessionStrategy, $httpUtils, $providerKey, $successHandler, $failureHandler, $options, $logger, $dispatcher);
     }
 
     /**
@@ -111,7 +116,7 @@ class SimpleFormAuthenticationListener extends AbstractAuthenticationListener
             $password = $request->get($this->options['password_parameter'], null, true);
         }
 
-        $request->getSession()->set(SecurityContextInterface::LAST_USERNAME, $username);
+        $request->getSession()->set(Security::LAST_USERNAME, $username);
 
         $token = $this->simpleAuthenticator->createToken($request, $username, $password, $this->providerKey);
 

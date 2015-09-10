@@ -41,7 +41,7 @@ class Response
     const HTTP_USE_PROXY = 305;
     const HTTP_RESERVED = 306;
     const HTTP_TEMPORARY_REDIRECT = 307;
-    const HTTP_PERMANENTLY_REDIRECT = 308;  // RFC-reschke-http-status-308-07
+    const HTTP_PERMANENTLY_REDIRECT = 308;  // RFC7238
     const HTTP_BAD_REQUEST = 400;
     const HTTP_UNAUTHORIZED = 401;
     const HTTP_PAYMENT_REQUIRED = 402;
@@ -97,7 +97,7 @@ class Response
     protected $version;
 
     /**
-     * @var integer
+     * @var int
      */
     protected $statusCode;
 
@@ -144,7 +144,7 @@ class Response
         305 => 'Use Proxy',
         306 => 'Reserved',
         307 => 'Temporary Redirect',
-        308 => 'Permanent Redirect',    // RFC-reschke-http-status-308-07
+        308 => 'Permanent Redirect',    // RFC7238
         400 => 'Bad Request',
         401 => 'Unauthorized',
         402 => 'Payment Required',
@@ -188,9 +188,9 @@ class Response
     /**
      * Constructor.
      *
-     * @param string  $content The response content
-     * @param integer $status  The response status code
-     * @param array   $headers An array of response headers
+     * @param mixed $content The response content, see setContent()
+     * @param int   $status  The response status code
+     * @param array $headers An array of response headers
      *
      * @throws \InvalidArgumentException When the HTTP status code is not valid
      *
@@ -202,22 +202,19 @@ class Response
         $this->setContent($content);
         $this->setStatusCode($status);
         $this->setProtocolVersion('1.0');
-        if (!$this->headers->has('Date')) {
-            $this->setDate(new \DateTime(null, new \DateTimeZone('UTC')));
-        }
     }
 
     /**
-     * Factory method for chainability
+     * Factory method for chainability.
      *
      * Example:
      *
      *     return Response::create($body, 200)
      *         ->setSharedMaxAge(300);
      *
-     * @param string  $content The response content
-     * @param integer $status  The response status code
-     * @param array   $headers An array of response headers
+     * @param mixed $content The response content, see setContent()
+     * @param int   $status  The response status code
+     * @param array $headers An array of response headers
      *
      * @return Response
      */
@@ -268,38 +265,40 @@ class Response
     {
         $headers = $this->headers;
 
-        if ($this->isInformational() || in_array($this->statusCode, array(204, 304))) {
+        if ($this->isInformational() || $this->isEmpty()) {
             $this->setContent(null);
-        }
-
-        // Content-type based on the Request
-        if (!$headers->has('Content-Type')) {
-            $format = $request->getRequestFormat();
-            if (null !== $format && $mimeType = $request->getMimeType($format)) {
-                $headers->set('Content-Type', $mimeType);
-            }
-        }
-
-        // Fix Content-Type
-        $charset = $this->charset ?: 'UTF-8';
-        if (!$headers->has('Content-Type')) {
-            $headers->set('Content-Type', 'text/html; charset='.$charset);
-        } elseif (0 === stripos($headers->get('Content-Type'), 'text/') && false === stripos($headers->get('Content-Type'), 'charset')) {
-            // add the charset
-            $headers->set('Content-Type', $headers->get('Content-Type').'; charset='.$charset);
-        }
-
-        // Fix Content-Length
-        if ($headers->has('Transfer-Encoding')) {
+            $headers->remove('Content-Type');
             $headers->remove('Content-Length');
-        }
+        } else {
+            // Content-type based on the Request
+            if (!$headers->has('Content-Type')) {
+                $format = $request->getRequestFormat();
+                if (null !== $format && $mimeType = $request->getMimeType($format)) {
+                    $headers->set('Content-Type', $mimeType);
+                }
+            }
 
-        if ($request->isMethod('HEAD')) {
-            // cf. RFC2616 14.13
-            $length = $headers->get('Content-Length');
-            $this->setContent(null);
-            if ($length) {
-                $headers->set('Content-Length', $length);
+            // Fix Content-Type
+            $charset = $this->charset ?: 'UTF-8';
+            if (!$headers->has('Content-Type')) {
+                $headers->set('Content-Type', 'text/html; charset='.$charset);
+            } elseif (0 === stripos($headers->get('Content-Type'), 'text/') && false === stripos($headers->get('Content-Type'), 'charset')) {
+                // add the charset
+                $headers->set('Content-Type', $headers->get('Content-Type').'; charset='.$charset);
+            }
+
+            // Fix Content-Length
+            if ($headers->has('Transfer-Encoding')) {
+                $headers->remove('Content-Length');
+            }
+
+            if ($request->isMethod('HEAD')) {
+                // cf. RFC2616 14.13
+                $length = $headers->get('Content-Length');
+                $this->setContent(null);
+                if ($length) {
+                    $headers->set('Content-Length', $length);
+                }
             }
         }
 
@@ -329,6 +328,10 @@ class Response
         // headers have already been sent by the developer
         if (headers_sent()) {
             return $this;
+        }
+
+        if (!$this->headers->has('Date')) {
+            $this->setDate(new \DateTime());
         }
 
         // status
@@ -376,25 +379,7 @@ class Response
         if (function_exists('fastcgi_finish_request')) {
             fastcgi_finish_request();
         } elseif ('cli' !== PHP_SAPI) {
-            // ob_get_level() never returns 0 on some Windows configurations, so if
-            // the level is the same two times in a row, the loop should be stopped.
-            $previous = null;
-            $obStatus = ob_get_status(1);
-            while (($level = ob_get_level()) > 0 && $level !== $previous) {
-                $previous = $level;
-                if ($obStatus[$level - 1]) {
-                    if (version_compare(PHP_VERSION, '5.4', '>=')) {
-                        if (isset($obStatus[$level - 1]['flags']) && ($obStatus[$level - 1]['flags'] & PHP_OUTPUT_HANDLER_REMOVABLE)) {
-                            ob_end_flush();
-                        }
-                    } else {
-                        if (isset($obStatus[$level - 1]['del']) && $obStatus[$level - 1]['del']) {
-                            ob_end_flush();
-                        }
-                    }
-                }
-            }
-            flush();
+            static::closeOutputBuffers(0, true);
         }
 
         return $this;
@@ -403,9 +388,9 @@ class Response
     /**
      * Sets the response content.
      *
-     * Valid types are strings, numbers, and objects that implement a __toString() method.
+     * Valid types are strings, numbers, null, and objects that implement a __toString() method.
      *
-     * @param mixed $content
+     * @param mixed $content Content that can be cast to string
      *
      * @return Response
      *
@@ -467,8 +452,8 @@ class Response
     /**
      * Sets the response status code.
      *
-     * @param integer $code HTTP status code
-     * @param mixed   $text HTTP status text
+     * @param int   $code HTTP status code
+     * @param mixed $text HTTP status text
      *
      * If the status text is null it will be automatically populated for the known
      * status codes and left empty otherwise.
@@ -506,7 +491,7 @@ class Response
     /**
      * Retrieves the status code for the current web response.
      *
-     * @return integer Status code
+     * @return int Status code
      *
      * @api
      */
@@ -552,7 +537,7 @@ class Response
      * Responses with neither a freshness lifetime (Expires, max-age) nor cache
      * validator (Last-Modified, ETag) are considered uncacheable.
      *
-     * @return Boolean true if the response is worth caching, false otherwise
+     * @return bool true if the response is worth caching, false otherwise
      *
      * @api
      */
@@ -576,7 +561,7 @@ class Response
      * origin. A response is considered fresh when it includes a Cache-Control/max-age
      * indicator or Expires header and the calculated age is less than the freshness lifetime.
      *
-     * @return Boolean true if the response is fresh, false otherwise
+     * @return bool true if the response is fresh, false otherwise
      *
      * @api
      */
@@ -589,7 +574,7 @@ class Response
      * Returns true if the response includes headers that can be used to validate
      * the response with the origin server using a conditional GET request.
      *
-     * @return Boolean true if the response is validateable, false otherwise
+     * @return bool true if the response is validateable, false otherwise
      *
      * @api
      */
@@ -640,13 +625,13 @@ class Response
      * When present, the TTL of the response should not be overridden to be
      * greater than the value provided by the origin.
      *
-     * @return Boolean true if the response must be revalidated by a cache, false otherwise
+     * @return bool true if the response must be revalidated by a cache, false otherwise
      *
      * @api
      */
     public function mustRevalidate()
     {
-        return $this->headers->hasCacheControlDirective('must-revalidate') || $this->headers->has('proxy-revalidate');
+        return $this->headers->hasCacheControlDirective('must-revalidate') || $this->headers->hasCacheControlDirective('proxy-revalidate');
     }
 
     /**
@@ -660,7 +645,11 @@ class Response
      */
     public function getDate()
     {
-        return $this->headers->getDate('Date', new \DateTime());
+        if (!$this->headers->has('Date')) {
+            $this->setDate(new \DateTime());
+        }
+
+        return $this->headers->getDate('Date');
     }
 
     /**
@@ -683,7 +672,7 @@ class Response
     /**
      * Returns the age of the response.
      *
-     * @return integer The age of the response in seconds
+     * @return int The age of the response in seconds
      */
     public function getAge()
     {
@@ -758,7 +747,7 @@ class Response
      * First, it checks for a s-maxage directive, then a max-age directive, and then it falls
      * back on an expires header. It returns null when no maximum age can be established.
      *
-     * @return integer|null Number of seconds
+     * @return int|null Number of seconds
      *
      * @api
      */
@@ -775,8 +764,6 @@ class Response
         if (null !== $this->getExpires()) {
             return $this->getExpires()->format('U') - $this->getDate()->format('U');
         }
-
-        return null;
     }
 
     /**
@@ -784,7 +771,7 @@ class Response
      *
      * This methods sets the Cache-Control max-age directive.
      *
-     * @param integer $value Number of seconds
+     * @param int $value Number of seconds
      *
      * @return Response
      *
@@ -802,7 +789,7 @@ class Response
      *
      * This methods sets the Cache-Control s-maxage directive.
      *
-     * @param integer $value Number of seconds
+     * @param int $value Number of seconds
      *
      * @return Response
      *
@@ -824,7 +811,7 @@ class Response
      * When the responses TTL is <= 0, the response may not be served from cache without first
      * revalidating with the origin.
      *
-     * @return integer|null The TTL in seconds
+     * @return int|null The TTL in seconds
      *
      * @api
      */
@@ -833,8 +820,6 @@ class Response
         if (null !== $maxAge = $this->getMaxAge()) {
             return $maxAge - $this->getAge();
         }
-
-        return null;
     }
 
     /**
@@ -842,7 +827,7 @@ class Response
      *
      * This method adjusts the Cache-Control/s-maxage directive.
      *
-     * @param integer $seconds Number of seconds
+     * @param int $seconds Number of seconds
      *
      * @return Response
      *
@@ -860,7 +845,7 @@ class Response
      *
      * This method adjusts the Cache-Control/max-age directive.
      *
-     * @param integer $seconds Number of seconds
+     * @param int $seconds Number of seconds
      *
      * @return Response
      *
@@ -927,7 +912,7 @@ class Response
      * Sets the ETag value.
      *
      * @param string|null $etag The ETag unique identifier or null to remove the header
-     * @param Boolean     $weak Whether you want a weak ETag or not
+     * @param bool        $weak Whether you want a weak ETag or not
      *
      * @return Response
      *
@@ -1030,7 +1015,7 @@ class Response
     /**
      * Returns true if the response includes a Vary header.
      *
-     * @return Boolean true if the response includes a Vary header, false otherwise
+     * @return bool true if the response includes a Vary header, false otherwise
      *
      * @api
      */
@@ -1048,18 +1033,23 @@ class Response
      */
     public function getVary()
     {
-        if (!$vary = $this->headers->get('Vary')) {
+        if (!$vary = $this->headers->get('Vary', null, false)) {
             return array();
         }
 
-        return is_array($vary) ? $vary : preg_split('/[\s,]+/', $vary);
+        $ret = array();
+        foreach ($vary as $item) {
+            $ret = array_merge($ret, preg_split('/[\s,]+/', $item));
+        }
+
+        return $ret;
     }
 
     /**
      * Sets the Vary header.
      *
      * @param string|array $headers
-     * @param Boolean      $replace Whether to replace the actual value of not (true by default)
+     * @param bool         $replace Whether to replace the actual value of not (true by default)
      *
      * @return Response
      *
@@ -1081,7 +1071,7 @@ class Response
      *
      * @param Request $request A Request instance
      *
-     * @return Boolean true if the Response validators match the Request, false otherwise
+     * @return bool true if the Response validators match the Request, false otherwise
      *
      * @api
      */
@@ -1091,12 +1081,16 @@ class Response
             return false;
         }
 
-        $lastModified = $request->headers->get('If-Modified-Since');
         $notModified = false;
-        if ($etags = $request->getEtags()) {
-            $notModified = (in_array($this->getEtag(), $etags) || in_array('*', $etags)) && (!$lastModified || $this->headers->get('Last-Modified') == $lastModified);
-        } elseif ($lastModified) {
-            $notModified = $lastModified == $this->headers->get('Last-Modified');
+        $lastModified = $this->headers->get('Last-Modified');
+        $modifiedSince = $request->headers->get('If-Modified-Since');
+
+        if ($etags = $request->getETags()) {
+            $notModified = in_array($this->getEtag(), $etags) || in_array('*', $etags);
+        }
+
+        if ($modifiedSince && $lastModified) {
+            $notModified = strtotime($modifiedSince) >= strtotime($lastModified) && (!$etags || $notModified);
         }
 
         if ($notModified) {
@@ -1110,7 +1104,7 @@ class Response
     /**
      * Is response invalid?
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -1122,7 +1116,7 @@ class Response
     /**
      * Is response informative?
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -1134,7 +1128,7 @@ class Response
     /**
      * Is response successful?
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -1146,7 +1140,7 @@ class Response
     /**
      * Is the response a redirect?
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -1158,7 +1152,7 @@ class Response
     /**
      * Is there a client error?
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -1170,7 +1164,7 @@ class Response
     /**
      * Was there a server side error?
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -1182,7 +1176,7 @@ class Response
     /**
      * Is the response OK?
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -1194,7 +1188,7 @@ class Response
     /**
      * Is the response forbidden?
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -1206,7 +1200,7 @@ class Response
     /**
      * Is the response a not found error?
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -1220,7 +1214,7 @@ class Response
      *
      * @param string $location
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
@@ -1232,24 +1226,48 @@ class Response
     /**
      * Is the response empty?
      *
-     * @return Boolean
+     * @return bool
      *
      * @api
      */
     public function isEmpty()
     {
-        return in_array($this->statusCode, array(201, 204, 304));
+        return in_array($this->statusCode, array(204, 304));
     }
 
     /**
-     * Check if we need to remove Cache-Control for ssl encrypted downloads when using IE < 9
+     * Cleans or flushes output buffers up to target level.
+     *
+     * Resulting level can be greater than target level if a non-removable buffer has been encountered.
+     *
+     * @param int  $targetLevel The target output buffering level
+     * @param bool $flush       Whether to flush or clean the buffers
+     */
+    public static function closeOutputBuffers($targetLevel, $flush)
+    {
+        $status = ob_get_status(true);
+        $level = count($status);
+        // PHP_OUTPUT_HANDLER_* are not defined on HHVM 3.3
+        $flags = defined('PHP_OUTPUT_HANDLER_REMOVABLE') ? PHP_OUTPUT_HANDLER_REMOVABLE | ($flush ? PHP_OUTPUT_HANDLER_FLUSHABLE : PHP_OUTPUT_HANDLER_CLEANABLE) : -1;
+
+        while ($level-- > $targetLevel && ($s = $status[$level]) && (!isset($s['del']) ? !isset($s['flags']) || $flags === ($s['flags'] & $flags) : $s['del'])) {
+            if ($flush) {
+                ob_end_flush();
+            } else {
+                ob_end_clean();
+            }
+        }
+    }
+
+    /**
+     * Checks if we need to remove Cache-Control for SSL encrypted downloads when using IE < 9.
      *
      * @link http://support.microsoft.com/kb/323308
      */
     protected function ensureIEOverSSLCompatibility(Request $request)
     {
         if (false !== stripos($this->headers->get('Content-Disposition'), 'attachment') && preg_match('/MSIE (.*?);/i', $request->server->get('HTTP_USER_AGENT'), $match) == 1 && true === $request->isSecure()) {
-            if (intval(preg_replace("/(MSIE )(.*?);/", "$2", $match[0])) < 9) {
+            if ((int) preg_replace('/(MSIE )(.*?);/', '$2', $match[0]) < 9) {
                 $this->headers->remove('Cache-Control');
             }
         }

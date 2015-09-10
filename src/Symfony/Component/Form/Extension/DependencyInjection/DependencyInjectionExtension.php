@@ -19,15 +19,10 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class DependencyInjectionExtension implements FormExtensionInterface
 {
     private $container;
-
     private $typeServiceIds;
-
     private $typeExtensionServiceIds;
-
     private $guesserServiceIds;
-
     private $guesser;
-
     private $guesserLoaded = false;
 
     public function __construct(ContainerInterface $container,
@@ -48,13 +43,15 @@ class DependencyInjectionExtension implements FormExtensionInterface
 
         $type = $this->container->get($this->typeServiceIds[$name]);
 
-        if ($type->getName() !== $name) {
+        // BC: validate result of getName() for legacy names (non-FQCN)
+        if ($name !== get_class($type) && $type->getName() !== $name) {
             throw new InvalidArgumentException(
                 sprintf('The type name specified for the service "%s" does not match the actual name. Expected "%s", given "%s"',
                     $this->typeServiceIds[$name],
                     $name,
                     $type->getName()
-                ));
+                )
+            );
         }
 
         return $type;

@@ -12,6 +12,7 @@
 namespace Symfony\Bundle\FrameworkBundle\Templating;
 
 use Symfony\Component\Templating\TemplateNameParserInterface;
+use Symfony\Component\Templating\TemplateReferenceInterface;
 
 /**
  * TemplateFilenameParser converts template filenames to
@@ -30,7 +31,7 @@ class TemplateFilenameParser implements TemplateNameParserInterface
             return $name;
         }
 
-        $parts = explode('/', strtr($name, '\\', '/'));
+        $parts = explode('/', str_replace('\\', '/', $name));
 
         $elements = explode('.', array_pop($parts));
         if (3 > count($elements)) {

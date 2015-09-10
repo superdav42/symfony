@@ -26,24 +26,24 @@ while ($read || $write) {
     }
 
     if (in_array(STDOUT, $w) && strlen($out) > 0) {
-         $written = fwrite(STDOUT, (binary) $out, 32768);
-         if (false === $written) {
-             die(ERR_WRITE_FAILED);
-         }
-         $out = (binary) substr($out, $written);
+        $written = fwrite(STDOUT, (binary) $out, 32768);
+        if (false === $written) {
+            die(ERR_WRITE_FAILED);
+        }
+        $out = (binary) substr($out, $written);
     }
-    if (null === $read && strlen($out) < 1) {
+    if (null === $read && '' === $out) {
         $write = array_diff($write, array(STDOUT));
     }
 
     if (in_array(STDERR, $w) && strlen($err) > 0) {
-         $written = fwrite(STDERR, (binary) $err, 32768);
-         if (false === $written) {
-             die(ERR_WRITE_FAILED);
-         }
-         $err = (binary) substr($err, $written);
+        $written = fwrite(STDERR, (binary) $err, 32768);
+        if (false === $written) {
+            die(ERR_WRITE_FAILED);
+        }
+        $err = (binary) substr($err, $written);
     }
-    if (null === $read && strlen($err) < 1) {
+    if (null === $read && '' === $err) {
         $write = array_diff($write, array(STDERR));
     }
 

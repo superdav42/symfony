@@ -12,6 +12,7 @@
 namespace Symfony\Component\Config;
 
 use Symfony\Component\Config\Resource\ResourceInterface;
+use Symfony\Component\Filesystem\Exception\IOException;
 use Symfony\Component\Filesystem\Filesystem;
 
 /**
@@ -22,21 +23,19 @@ use Symfony\Component\Filesystem\Filesystem;
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
-class ConfigCache
+class ConfigCache implements ConfigCacheInterface
 {
     private $debug;
     private $file;
 
     /**
-     * Constructor.
-     *
-     * @param string  $file  The absolute cache path
-     * @param Boolean $debug Whether debugging is enabled or not
+     * @param string $file  The absolute cache path
+     * @param bool   $debug Whether debugging is enabled or not
      */
     public function __construct($file, $debug)
     {
         $this->file = $file;
-        $this->debug = (Boolean) $debug;
+        $this->debug = (bool) $debug;
     }
 
     /**
@@ -44,7 +43,7 @@ class ConfigCache
      *
      * @return string The cache file path
      */
-    public function __toString()
+    public function getPath()
     {
         return $this->file;
     }
@@ -55,7 +54,7 @@ class ConfigCache
      * This method always returns true when debug is off and the
      * cache file exists.
      *
-     * @return Boolean true if the cache is fresh, false otherwise
+     * @return bool true if the cache is fresh, false otherwise
      */
     public function isFresh()
     {
@@ -89,16 +88,27 @@ class ConfigCache
      * @param string              $content  The content to write in the cache
      * @param ResourceInterface[] $metadata An array of ResourceInterface instances
      *
-     * @throws \RuntimeException When cache file can't be wrote
+     * @throws \RuntimeException When cache file can't be written
      */
     public function write($content, array $metadata = null)
     {
-        $mode = 0666 & ~umask();
+        $mode = 0666;
+        $umask = umask();
         $filesystem = new Filesystem();
-        $filesystem->dumpFile($this->file, $content, $mode);
+        $filesystem->dumpFile($this->file, $content);
+        try {
+            $filesystem->chmod($this->file, $mode, $umask);
+        } catch (IOException $e) {
+            // discard chmod failure (some filesystem may not support it)
+        }
 
         if (null !== $metadata && true === $this->debug) {
-            $filesystem->dumpFile($this->getMetaFile(), serialize($metadata), $mode);
+            $filesystem->dumpFile($this->getMetaFile(), serialize($metadata));
+            try {
+                $filesystem->chmod($this->getMetaFile(), $mode, $umask);
+            } catch (IOException $e) {
+                // discard chmod failure (some filesystem may not support it)
+            }
         }
     }
 
@@ -111,5 +121,4 @@ class ConfigCache
     {
         return $this->file.'.meta';
     }
-
 }

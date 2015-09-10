@@ -2,7 +2,6 @@
 
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Container;
-use Symfony\Component\DependencyInjection\Exception\InactiveScopeException;
 use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
 use Symfony\Component\DependencyInjection\Exception\LogicException;
 use Symfony\Component\DependencyInjection\Exception\RuntimeException;
@@ -11,7 +10,7 @@ use Symfony\Component\DependencyInjection\Parameter;
 use Symfony\Component\DependencyInjection\ParameterBag\FrozenParameterBag;
 
 /**
- * ProjectServiceContainer
+ * ProjectServiceContainer.
  *
  * This class has been auto-generated
  * by the Symfony Dependency Injection Component.
@@ -23,14 +22,7 @@ class LazyServiceProjectServiceContainer extends Container
      */
     public function __construct()
     {
-        $this->services =
-        $this->scopedServices =
-        $this->scopeStacks = array();
-
-        $this->set('service_container', $this);
-
-        $this->scopes = array();
-        $this->scopeChildren = array();
+        $this->services = array();
     }
 
     /**
@@ -39,18 +31,16 @@ class LazyServiceProjectServiceContainer extends Container
      * This service is shared.
      * This method always returns the same instance of the service.
      *
-     * @param Boolean $lazyLoad whether to try lazy-loading the service with a proxy
+     * @param bool $lazyLoad whether to try lazy-loading the service with a proxy
      *
      * @return stdClass A stdClass instance.
      */
     public function getFooService($lazyLoad = true)
     {
         if ($lazyLoad) {
-            $container = $this;
-
             return $this->services['foo'] = new stdClass_c1d194250ee2e2b7d2eab8b8212368a8(
-                function (& $wrappedInstance, \ProxyManager\Proxy\LazyLoadingInterface $proxy) use ($container) {
-                    $wrappedInstance = $container->getFooService(false);
+                function (&$wrappedInstance, \ProxyManager\Proxy\LazyLoadingInterface $proxy) {
+                    $wrappedInstance = $this->getFooService(false);
 
                     $proxy->setProxyInitializer(null);
 
@@ -65,7 +55,6 @@ class LazyServiceProjectServiceContainer extends Container
 
 class stdClass_c1d194250ee2e2b7d2eab8b8212368a8 extends \stdClass implements \ProxyManager\Proxy\LazyLoadingInterface, \ProxyManager\Proxy\ValueHolderInterface
 {
-
     /**
      * @var \Closure|null initializer responsible for generating the wrapped object
      */
@@ -98,7 +87,7 @@ class stdClass_c1d194250ee2e2b7d2eab8b8212368a8 extends \stdClass implements \Pr
 
     /**
      * @param string $name
-     * @param mixed $value
+     * @param mixed  $value
      */
     public function __set($name, $value)
     {
@@ -110,7 +99,7 @@ class stdClass_c1d194250ee2e2b7d2eab8b8212368a8 extends \stdClass implements \Pr
     /**
      * @param string $name
      *
-     * @return Boolean
+     * @return bool
      */
     public function __isset($name)
     {
@@ -157,7 +146,7 @@ class stdClass_c1d194250ee2e2b7d2eab8b8212368a8 extends \stdClass implements \Pr
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function setProxyInitializer(\Closure $initializer = null)
     {
@@ -165,7 +154,7 @@ class stdClass_c1d194250ee2e2b7d2eab8b8212368a8 extends \stdClass implements \Pr
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function getProxyInitializer()
     {
@@ -173,7 +162,7 @@ class stdClass_c1d194250ee2e2b7d2eab8b8212368a8 extends \stdClass implements \Pr
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function initializeProxy()
     {
@@ -181,7 +170,7 @@ class stdClass_c1d194250ee2e2b7d2eab8b8212368a8 extends \stdClass implements \Pr
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function isProxyInitialized()
     {
@@ -189,11 +178,10 @@ class stdClass_c1d194250ee2e2b7d2eab8b8212368a8 extends \stdClass implements \Pr
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function getWrappedValueHolderValue()
     {
         return $this->valueHolder5157dd96e88c0;
     }
-
 }

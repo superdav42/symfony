@@ -32,21 +32,17 @@ class XmlFileLoaderTest extends \PHPUnit_Framework_TestCase
     {
         $loader = new XmlFileLoader(new FileLocator(array(__DIR__.'/../Fixtures')));
         $routeCollection = $loader->load('validpattern.xml');
-        $routes = $routeCollection->all();
+        $route = $routeCollection->get('blog_show');
 
-        $this->assertCount(2, $routes, 'Two routes are loaded');
-        $this->assertContainsOnly('Symfony\Component\Routing\Route', $routes);
-
-        foreach ($routes as $route) {
-            $this->assertSame('/blog/{slug}', $route->getPath());
-            $this->assertSame('{locale}.example.com', $route->getHost());
-            $this->assertSame('MyBundle:Blog:show', $route->getDefault('_controller'));
-            $this->assertSame('\w+', $route->getRequirement('locale'));
-            $this->assertSame('RouteCompiler', $route->getOption('compiler_class'));
-            $this->assertEquals(array('GET', 'POST', 'PUT', 'OPTIONS'), $route->getMethods());
-            $this->assertEquals(array('https'), $route->getSchemes());
-            $this->assertEquals('context.getMethod() == "GET"', $route->getCondition());
-        }
+        $this->assertInstanceOf('Symfony\Component\Routing\Route', $route);
+        $this->assertSame('/blog/{slug}', $route->getPath());
+        $this->assertSame('{locale}.example.com', $route->getHost());
+        $this->assertSame('MyBundle:Blog:show', $route->getDefault('_controller'));
+        $this->assertSame('\w+', $route->getRequirement('locale'));
+        $this->assertSame('RouteCompiler', $route->getOption('compiler_class'));
+        $this->assertEquals(array('GET', 'POST', 'PUT', 'OPTIONS'), $route->getMethods());
+        $this->assertEquals(array('https'), $route->getSchemes());
+        $this->assertEquals('context.getMethod() == "GET"', $route->getCondition());
     }
 
     public function testLoadWithNamespacePrefix()
@@ -62,7 +58,7 @@ class XmlFileLoaderTest extends \PHPUnit_Framework_TestCase
         $this->assertSame('MyBundle:Blog:show', $route->getDefault('_controller'));
         $this->assertSame('\w+', $route->getRequirement('slug'));
         $this->assertSame('en|fr|de', $route->getRequirement('_locale'));
-        $this->assertSame(null, $route->getDefault('slug'));
+        $this->assertNull($route->getDefault('slug'));
         $this->assertSame('RouteCompiler', $route->getOption('compiler_class'));
     }
 
@@ -81,6 +77,7 @@ class XmlFileLoaderTest extends \PHPUnit_Framework_TestCase
             $this->assertSame('\d+', $route->getRequirement('foo'));
             $this->assertSame('bar', $route->getOption('foo'));
             $this->assertSame('', $route->getHost());
+            $this->assertSame('context.getMethod() == "POST"', $route->getCondition());
         }
     }
 
@@ -117,5 +114,19 @@ class XmlFileLoaderTest extends \PHPUnit_Framework_TestCase
     {
         $loader = new XmlFileLoader(new FileLocator(array(__DIR__.'/../Fixtures')));
         $loader->load('withdoctype.xml');
+    }
+
+    public function testNullValues()
+    {
+        $loader = new XmlFileLoader(new FileLocator(array(__DIR__.'/../Fixtures')));
+        $routeCollection = $loader->load('null_values.xml');
+        $route = $routeCollection->get('blog_show');
+
+        $this->assertTrue($route->hasDefault('foo'));
+        $this->assertNull($route->getDefault('foo'));
+        $this->assertTrue($route->hasDefault('bar'));
+        $this->assertNull($route->getDefault('bar'));
+        $this->assertEquals('foo', $route->getDefault('foobar'));
+        $this->assertEquals('bar', $route->getDefault('baz'));
     }
 }

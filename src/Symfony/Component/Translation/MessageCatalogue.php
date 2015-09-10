@@ -190,6 +190,13 @@ class MessageCatalogue implements MessageCatalogueInterface, MetadataAwareInterf
     public function addFallbackCatalogue(MessageCatalogueInterface $catalogue)
     {
         // detect circular references
+        $c = $catalogue;
+        while ($c = $c->getFallbackCatalogue()) {
+            if ($c->getLocale() === $this->getLocale()) {
+                throw new \LogicException(sprintf('Circular reference detected when adding a fallback catalogue for locale "%s".', $catalogue->getLocale()));
+            }
+        }
+
         $c = $this;
         do {
             if ($c->getLocale() === $catalogue->getLocale()) {
@@ -253,8 +260,6 @@ class MessageCatalogue implements MessageCatalogueInterface, MetadataAwareInterf
                 return $this->metadata[$domain][$key];
             }
         }
-
-        return null;
     }
 
     /**

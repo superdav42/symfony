@@ -11,12 +11,9 @@
 
 namespace Symfony\Component\HttpKernel\DataCollector;
 
-use Symfony\Component\HttpKernel\DataCollector\DataCollector;
-use Symfony\Component\HttpKernel\DataCollector\LateDataCollectorInterface;
-use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Stopwatch\Stopwatch;
+use Symfony\Component\HttpKernel\KernelInterface;
 
 /**
  * TimeDataCollector.
@@ -46,9 +43,9 @@ class TimeDataCollector extends DataCollector implements LateDataCollectorInterf
         }
 
         $this->data = array(
-            'token'      => $response->headers->get('X-Debug-Token'),
+            'token' => $response->headers->get('X-Debug-Token'),
             'start_time' => $startTime * 1000,
-            'events'     => array(),
+            'events' => array(),
         );
     }
 
@@ -122,7 +119,7 @@ class TimeDataCollector extends DataCollector implements LateDataCollectorInterf
     /**
      * Gets the request time.
      *
-     * @return integer The time
+     * @return int The time
      */
     public function getStartTime()
     {

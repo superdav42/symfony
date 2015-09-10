@@ -33,6 +33,8 @@ namespace Symfony\Component\Validator;
  * </ol>
  *
  * @author Bernhard Schussek <bschussek@gmail.com>
+ *
+ * @deprecated since version 2.5, to be removed in 3.0.
  */
 interface ValidationVisitorInterface
 {
@@ -54,11 +56,11 @@ interface ValidationVisitorInterface
      * does not find metadata for the given value, it will fail with an
      * exception.
      *
-     * @param mixed   $value        The value to validate.
-     * @param string  $group        The validation group to validate.
-     * @param string  $propertyPath The current property path in the validation graph.
-     * @param Boolean $traverse     Whether to traverse the value if it is traversable.
-     * @param Boolean $deep         Whether to traverse nested traversable values recursively.
+     * @param mixed  $value        The value to validate.
+     * @param string $group        The validation group to validate.
+     * @param string $propertyPath The current property path in the validation graph.
+     * @param bool   $traverse     Whether to traverse the value if it is traversable.
+     * @param bool   $deep         Whether to traverse nested traversable values recursively.
      *
      * @throws Exception\NoSuchMetadataException If no metadata can be found for
      *                                           the given value.

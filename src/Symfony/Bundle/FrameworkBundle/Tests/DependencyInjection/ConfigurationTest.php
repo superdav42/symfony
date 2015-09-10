@@ -19,12 +19,25 @@ class ConfigurationTest extends \PHPUnit_Framework_TestCase
     public function testDefaultConfig()
     {
         $processor = new Processor();
-        $config = $processor->processConfiguration(new Configuration(), array(array('secret' => 's3cr3t')));
+        $config = $processor->processConfiguration(new Configuration(true), array(array('secret' => 's3cr3t')));
 
         $this->assertEquals(
             array_merge(array('secret' => 's3cr3t', 'trusted_hosts' => array()), self::getBundleDefaultConfig()),
             $config
         );
+    }
+
+    public function testDoNoDuplicateDefaultFormResources()
+    {
+        $input = array('templating' => array(
+            'form' => array('resources' => array('FrameworkBundle:Form')),
+            'engines' => array('php'),
+        ));
+
+        $processor = new Processor();
+        $config = $processor->processConfiguration(new Configuration(true), array($input));
+
+        $this->assertEquals(array('FrameworkBundle:Form'), $config['templating']['form']['resources']);
     }
 
     /**
@@ -33,10 +46,10 @@ class ConfigurationTest extends \PHPUnit_Framework_TestCase
     public function testValidTrustedProxies($trustedProxies, $processedProxies)
     {
         $processor = new Processor();
-        $configuration = new Configuration(array());
+        $configuration = new Configuration(true);
         $config = $processor->processConfiguration($configuration, array(array(
-            'secret'          => 's3cr3t',
-            'trusted_proxies' => $trustedProxies
+            'secret' => 's3cr3t',
+            'trusted_proxies' => $trustedProxies,
         )));
 
         $this->assertEquals($processedProxies, $config['trusted_proxies']);
@@ -62,12 +75,12 @@ class ConfigurationTest extends \PHPUnit_Framework_TestCase
     public function testInvalidTypeTrustedProxies()
     {
         $processor = new Processor();
-        $configuration = new Configuration(array());
+        $configuration = new Configuration(true);
         $processor->processConfiguration($configuration, array(
             array(
                 'secret' => 's3cr3t',
-                'trusted_proxies' => 'Not an IP address'
-            )
+                'trusted_proxies' => 'Not an IP address',
+            ),
         ));
     }
 
@@ -77,65 +90,88 @@ class ConfigurationTest extends \PHPUnit_Framework_TestCase
     public function testInvalidValueTrustedProxies()
     {
         $processor = new Processor();
-        $configuration = new Configuration(array());
+        $configuration = new Configuration(true);
         $processor->processConfiguration($configuration, array(
             array(
                 'secret' => 's3cr3t',
-                'trusted_proxies' => array('Not an IP address')
-            )
+                'trusted_proxies' => array('Not an IP address'),
+            ),
         ));
+    }
+
+    public function testAssetsCanBeEnabled()
+    {
+        $processor = new Processor();
+        $configuration = new Configuration(true);
+        $config = $processor->processConfiguration($configuration, array(array('assets' => null)));
+
+        $defaultConfig = array(
+            'version' => null,
+            'version_format' => '%%s?%%s',
+            'base_path' => '',
+            'base_urls' => array(),
+            'packages' => array(),
+        );
+
+        $this->assertEquals($defaultConfig, $config['assets']);
     }
 
     protected static function getBundleDefaultConfig()
     {
         return array(
             'http_method_override' => true,
-            'trusted_proxies'     => array(),
-            'ide'                 => null,
-            'default_locale'      => 'en',
-            'form'                => array(
+            'trusted_proxies' => array(),
+            'ide' => null,
+            'default_locale' => 'en',
+            'form' => array(
                 'enabled' => false,
                 'csrf_protection' => array(
-                    'enabled' => true,
-                    'field_name' => null,
+                    'enabled' => false,
+                    'field_name' => '_token',
                 ),
             ),
-            'csrf_protection'     => array(
-                'enabled'    => false,
-                'field_name' => '_token',
-            ),
-            'esi'                 => array('enabled' => false),
-            'fragments'           => array(
+            'esi' => array('enabled' => false),
+            'ssi' => array('enabled' => false),
+            'fragments' => array(
                 'enabled' => false,
-                'path'    => '/_fragment',
+                'path' => '/_fragment',
             ),
-            'profiler'            => array(
-                'enabled'              => false,
-                'only_exceptions'      => false,
+            'profiler' => array(
+                'enabled' => false,
+                'only_exceptions' => false,
                 'only_master_requests' => false,
-                'dsn'                  => 'file:%kernel.cache_dir%/profiler',
-                'username'             => '',
-                'password'             => '',
-                'lifetime'             => 86400,
-                'collect'              => true,
+                'dsn' => 'file:%kernel.cache_dir%/profiler',
+                'username' => '',
+                'password' => '',
+                'lifetime' => 86400,
+                'collect' => true,
             ),
-            'translator'          => array(
-                'enabled'  => false,
-                'fallback' => 'en',
+            'translator' => array(
+                'enabled' => false,
+                'fallbacks' => array('en'),
+                'logging' => true,
+                'paths' => array(),
             ),
-            'validation'          => array(
-                'enabled'            => false,
+            'validation' => array(
+                'enabled' => false,
                 'enable_annotations' => false,
+                'static_method' => array('loadValidatorMetadata'),
                 'translation_domain' => 'validators',
+                'strict_email' => false,
             ),
-            'annotations'         => array(
-                'cache'          => 'file',
+            'annotations' => array(
+                'cache' => 'file',
                 'file_cache_dir' => '%kernel.cache_dir%/annotations',
-                'debug'          => '%kernel.debug%',
+                'debug' => '%kernel.debug%',
             ),
-            'serializer'          => array(
-                'enabled' => false
-            )
+            'serializer' => array(
+                'enabled' => false,
+                'enable_annotations' => false,
+            ),
+            'property_access' => array(
+                'magic_call' => false,
+                'throw_exception_on_invalid_index' => false,
+            ),
         );
     }
 }
