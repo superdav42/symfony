@@ -11,7 +11,6 @@
 
 namespace Symfony\Component\DependencyInjection\Tests\Compiler;
 
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\DefinitionDecorator;
 use Symfony\Component\DependencyInjection\Compiler\ResolveDefinitionTemplatesPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -79,6 +78,25 @@ class ResolveDefinitionTemplatesPassTest extends \PHPUnit_Framework_TestCase
         $this->assertFalse($def->isAbstract());
     }
 
+    public function testProcessDoesNotCopyShared()
+    {
+        $container = new ContainerBuilder();
+
+        $container
+            ->register('parent')
+            ->setShared(false)
+        ;
+
+        $container
+            ->setDefinition('child', new DefinitionDecorator('parent'))
+        ;
+
+        $this->process($container);
+
+        $def = $container->getDefinition('child');
+        $this->assertTrue($def->isShared());
+    }
+
     public function testProcessDoesNotCopyTags()
     {
         $container = new ContainerBuilder();
@@ -115,6 +133,25 @@ class ResolveDefinitionTemplatesPassTest extends \PHPUnit_Framework_TestCase
 
         $def = $container->getDefinition('child');
         $this->assertNull($def->getDecoratedService());
+    }
+
+    public function testProcessDoesNotDropShared()
+    {
+        $container = new ContainerBuilder();
+
+        $container
+            ->register('parent')
+        ;
+
+        $container
+            ->setDefinition('child', new DefinitionDecorator('parent'))
+            ->setShared(false)
+        ;
+
+        $this->process($container);
+
+        $def = $container->getDefinition('child');
+        $this->assertFalse($def->isShared());
     }
 
     public function testProcessHandlesMultipleInheritance()
@@ -220,6 +257,56 @@ class ResolveDefinitionTemplatesPassTest extends \PHPUnit_Framework_TestCase
         ;
 
         $this->assertEquals(array('foo', 'foo_inner', 0), $container->getDefinition('child1')->getDecoratedService());
+    }
+
+    public function testDecoratedServiceCopiesDeprecatedStatusFromParent()
+    {
+        $container = new ContainerBuilder();
+        $container->register('deprecated_parent')
+            ->setDeprecated(true)
+        ;
+
+        $container->setDefinition('decorated_deprecated_parent', new DefinitionDecorator('deprecated_parent'));
+
+        $this->process($container);
+
+        $this->assertTrue($container->getDefinition('decorated_deprecated_parent')->isDeprecated());
+    }
+
+    public function testDecoratedServiceCanOverwriteDeprecatedParentStatus()
+    {
+        $container = new ContainerBuilder();
+        $container->register('deprecated_parent')
+            ->setDeprecated(true)
+        ;
+
+        $container->setDefinition('decorated_deprecated_parent', new DefinitionDecorator('deprecated_parent'))
+            ->setDeprecated(false)
+        ;
+
+        $this->process($container);
+
+        $this->assertFalse($container->getDefinition('decorated_deprecated_parent')->isDeprecated());
+    }
+
+    public function testProcessMergeAutowiringTypes()
+    {
+        $container = new ContainerBuilder();
+
+        $container
+            ->register('parent')
+            ->addAutowiringType('Foo')
+        ;
+
+        $container
+            ->setDefinition('child', new DefinitionDecorator('parent'))
+            ->addAutowiringType('Bar')
+        ;
+
+        $this->process($container);
+
+        $def = $container->getDefinition('child');
+        $this->assertEquals(array('Foo', 'Bar'), $def->getAutowiringTypes());
     }
 
     protected function process(ContainerBuilder $container)

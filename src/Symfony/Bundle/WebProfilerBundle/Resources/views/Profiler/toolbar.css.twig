@@ -1,12 +1,29 @@
+{# when updating any of these colors, do the same in profiler.css.twig #}
+{% set colors = { 'success': '#4F805D', 'warning': '#A46A1F', 'error': '#B0413E' } %}
+
 .sf-minitoolbar {
     background-color: #222;
+    border-top-left-radius: 4px;
     bottom: 0;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
     display: none;
     height: 36px;
-    padding: 5px 6px 0;
+    padding: 6px;
     position: fixed;
     right: 0;
     z-index: 99999;
+}
+
+.sf-minitoolbar a {
+    display: block;
+}
+.sf-minitoolbar svg,
+.sf-minitoolbar img {
+    max-height: 24px;
+    max-width: 24px;
+    display: inline;
 }
 
 .sf-toolbarreset * {
@@ -28,7 +45,12 @@
     position: fixed;
     right: 0;
     text-align: left;
+    text-transform: none;
     z-index: 99999;
+
+    /* neutralize the aliasing defined by external CSS styles */
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
 }
 .sf-toolbarreset abbr {
     border: dashed #777;
@@ -36,12 +58,11 @@
 }
 .sf-toolbarreset svg,
 .sf-toolbarreset img {
-    max-height: 20px;
+    height: 20px;
 }
 
 .sf-toolbarreset .hide-button {
     background: #444;
-    cursor: pointer;
     display: block;
     position: absolute;
     top: 0;
@@ -53,7 +74,7 @@
 }
 .sf-toolbarreset .hide-button svg {
     max-height: 18px;
-    padding-top: 10px;
+    margin-top: 10px;
 }
 
 .sf-toolbar-block {
@@ -103,6 +124,16 @@
 .sf-toolbar-block .sf-toolbar-info-piece-additional,
 .sf-toolbar-block .sf-toolbar-info-piece-additional-detail {
     display: none;
+}
+.sf-toolbar-block .sf-toolbar-info-group {
+    margin-bottom: 4px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid #333333;
+}
+.sf-toolbar-block .sf-toolbar-info-group:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
 }
 
 .sf-toolbar-block .sf-toolbar-info-piece .sf-toolbar-status {
@@ -159,30 +190,31 @@
     padding: 3px 6px;
     margin-bottom: 2px;
     vertical-align: middle;
-    min-width: 6px;
+    min-width: 15px;
     min-height: 13px;
+    text-align: center;
 }
 
 .sf-toolbar-block .sf-toolbar-status-green {
-    background-color: rgba(117, 158, 43, 0.8);
+    background-color: {{ colors.success|raw }};
 }
 .sf-toolbar-block .sf-toolbar-status-red {
-    background-color: rgba(200, 43, 43, 0.8);
+    background-color: {{ colors.error|raw }};
 }
 .sf-toolbar-block .sf-toolbar-status-yellow {
-    background-color: rgb(189, 132, 0);
+    background-color: {{ colors.warning|raw }};
 }
 
 .sf-toolbar-block.sf-toolbar-status-green {
-    background-color: rgba(117, 158, 43, 0.8);
+    background-color: {{ colors.success|raw }};
     color: #FFF;
 }
 .sf-toolbar-block.sf-toolbar-status-red {
-    background-color: rgba(200, 43, 43, 0.8);
+    background-color: {{ colors.error|raw }};
     color: #FFF;
 }
 .sf-toolbar-block.sf-toolbar-status-yellow {
-    background-color: rgb(189, 132, 0);
+    background-color: {{ colors.warning|raw }};
     color: #FFF;
 }
 
@@ -338,6 +370,8 @@
 /* Override the setting when the toolbar is on the top */
 {% if position == 'top' %}
     .sf-minitoolbar {
+        border-bottom-left-radius: 4px;
+        border-top-left-radius: 0;
         bottom: auto;
         right: 0;
         top: 0;
@@ -393,9 +427,6 @@
     .sf-toolbar-block .sf-toolbar-icon svg {
         top: 6px;
     }
-    .sf-toolbar-block-config:hover .sf-toolbar-info {
-        right: 0;
-    }
     .sf-toolbar-block-time .sf-toolbar-icon svg,
     .sf-toolbar-block-memory .sf-toolbar-icon svg {
         display: none;
@@ -436,7 +467,7 @@
         font-size: 13px;
     }
 
-    .sf-toolbar-block-config {
+    .sf-toolbar-block-right {
         float: right;
         margin-left: 0;
         margin-right: 0;

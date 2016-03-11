@@ -13,37 +13,34 @@ namespace Symfony\Component\Form\Tests\Extension\Core\Type;
 
 use Symfony\Component\Form\ChoiceList\View\ChoiceGroupView;
 use Symfony\Component\Form\ChoiceList\View\ChoiceView;
-use Symfony\Component\Form\Extension\Core\ChoiceList\ObjectChoiceList;
 
 class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
 {
     private $choices = array(
-        'a' => 'Bernhard',
-        'b' => 'Fabien',
-        'c' => 'Kris',
-        'd' => 'Jon',
-        'e' => 'Roman',
+        'Bernhard' => 'a',
+        'Fabien' => 'b',
+        'Kris' => 'c',
+        'Jon' => 'd',
+        'Roman' => 'e',
     );
 
-    private $numericChoices = array(
-        0 => 'Bernhard',
-        1 => 'Fabien',
-        2 => 'Kris',
-        3 => 'Jon',
-        4 => 'Roman',
+    private $scalarChoices = array(
+        'Yes' => true,
+        'No' => false,
+        'n/a' => '',
     );
 
     private $objectChoices;
 
     protected $groupedChoices = array(
         'Symfony' => array(
-            'a' => 'Bernhard',
-            'b' => 'Fabien',
-            'c' => 'Kris',
+            'Bernhard' => 'a',
+            'Fabien' => 'b',
+            'Kris' => 'c',
         ),
         'Doctrine' => array(
-            'd' => 'Jon',
-            'e' => 'Roman',
+            'Jon' => 'd',
+            'Roman' => 'e',
         ),
     );
 
@@ -80,16 +77,6 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
     /**
      * @expectedException \Symfony\Component\OptionsResolver\Exception\InvalidOptionsException
      */
-    public function testChoiceListOptionExpectsChoiceListInterface()
-    {
-        $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
-            'choice_list' => array('foo' => 'foo'),
-        ));
-    }
-
-    /**
-     * @expectedException \Symfony\Component\OptionsResolver\Exception\InvalidOptionsException
-     */
     public function testChoiceLoaderOptionExpectsChoiceLoaderInterface()
     {
         $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
@@ -99,7 +86,8 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
 
     public function testChoiceListAndChoicesCanBeEmpty()
     {
-        $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType');
+        $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
+        ));
     }
 
     public function testExpandedChoicesOptionsTurnIntoChildren()
@@ -110,6 +98,54 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
         ));
 
         $this->assertCount(count($this->choices), $form, 'Each choice should become a new field');
+    }
+
+    public function testChoiceListWithScalarValues()
+    {
+        $view = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
+            'choices' => $this->scalarChoices,
+        ))->createView();
+
+        $this->assertSame('1', $view->vars['choices'][0]->value);
+        $this->assertSame('0', $view->vars['choices'][1]->value);
+        $this->assertSame('', $view->vars['choices'][2]->value);
+        $this->assertFalse($view->vars['is_selected']($view->vars['choices'][0], $view->vars['value']), 'True value should not be pre selected');
+        $this->assertFalse($view->vars['is_selected']($view->vars['choices'][1], $view->vars['value']), 'False value should not be pre selected');
+        $this->assertFalse($view->vars['is_selected']($view->vars['choices'][2], $view->vars['value']), 'Empty value should not be pre selected');
+    }
+
+    public function testChoiceListWithScalarValuesAndFalseAsPreSetData()
+    {
+        $view = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', false, array(
+            'choices' => $this->scalarChoices,
+        ))->createView();
+
+        $this->assertTrue($view->vars['is_selected']($view->vars['choices'][1]->value, $view->vars['value']), 'False value should be pre selected');
+    }
+
+    public function testExpandedChoiceListWithScalarValues()
+    {
+        $view = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
+            'choices' => $this->scalarChoices,
+            'expanded' => true,
+        ))->createView();
+
+        $this->assertFalse($view->children[0]->vars['checked'], 'True value should not be pre selected');
+        $this->assertFalse($view->children[1]->vars['checked'], 'False value should not be pre selected');
+        $this->assertTrue($view->children[2]->vars['checked'], 'Empty value should be pre selected');
+    }
+
+    public function testExpandedChoiceListWithScalarValuesAndFalseAsPreSetData()
+    {
+        $view = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', false, array(
+            'choices' => $this->scalarChoices,
+            'expanded' => true,
+        ))->createView();
+
+        $this->assertSame('1', $view->vars['choices'][0]->value);
+        $this->assertSame('0', $view->vars['choices'][1]->value);
+        $this->assertTrue($view->children[1]->vars['checked'], 'False value should be pre selected');
+        $this->assertFalse($view->children[2]->vars['checked'], 'Empty value should not be pre selected');
     }
 
     public function testPlaceholderPresentOnNonRequiredExpandedSingleChoice()
@@ -158,13 +194,103 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             'expanded' => true,
             'required' => false,
             'choices' => array(
-                '' => 'Empty',
-                1 => 'Not empty',
+                'Empty' => '',
+                'Not empty' => 1,
             ),
         ));
 
         $this->assertFalse(isset($form['placeholder']));
         $this->assertCount(2, $form, 'Each choice should become a new field');
+    }
+
+    public function testPlaceholderWithBooleanChoices()
+    {
+        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
+            'multiple' => false,
+            'expanded' => false,
+            'required' => false,
+            'choices' => array(
+                'Yes' => true,
+                'No' => false,
+            ),
+            'placeholder' => 'Select an option',
+        ));
+
+        $view = $form->createView();
+
+        $this->assertSame('', $view->vars['value'], 'Value should be empty');
+        $this->assertSame('1', $view->vars['choices'][0]->value);
+        $this->assertSame('0', $view->vars['choices'][1]->value, 'Choice "false" should have "0" as value');
+        $this->assertFalse($view->vars['is_selected']($view->vars['choices'][1]->value, $view->vars['value']), 'Choice "false" should not be selected');
+    }
+
+    public function testPlaceholderWithBooleanChoicesWithFalseAsPreSetData()
+    {
+        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', false, array(
+            'multiple' => false,
+            'expanded' => false,
+            'required' => false,
+            'choices' => array(
+                'Yes' => true,
+                'No' => false,
+            ),
+            'placeholder' => 'Select an option',
+        ));
+
+        $view = $form->createView();
+
+        $this->assertSame('0', $view->vars['value'], 'Value should be "0"');
+        $this->assertSame('1', $view->vars['choices'][0]->value);
+        $this->assertSame('0', $view->vars['choices'][1]->value, 'Choice "false" should have "0" as value');
+        $this->assertTrue($view->vars['is_selected']($view->vars['choices'][1]->value, $view->vars['value']), 'Choice "false" should be selected');
+    }
+
+    public function testPlaceholderWithExpandedBooleanChoices()
+    {
+        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
+            'multiple' => false,
+            'expanded' => true,
+            'required' => false,
+            'choices' => array(
+                'Yes' => true,
+                'No' => false,
+            ),
+            'placeholder' => 'Select an option',
+        ));
+
+        $this->assertTrue(isset($form['placeholder']), 'Placeholder should be set');
+        $this->assertCount(3, $form, 'Each choice should become a new field, placeholder included');
+
+        $view = $form->createView();
+
+        $this->assertSame('', $view->vars['value'], 'Value should be empty');
+        $this->assertSame('1', $view->vars['choices'][0]->value);
+        $this->assertSame('0', $view->vars['choices'][1]->value, 'Choice "false" should have "0" as value');
+        $this->assertFalse($view->children[1]->vars['checked'], 'Choice "false" should not be selected');
+    }
+
+    public function testPlaceholderWithExpandedBooleanChoicesAndWithFalseAsPreSetData()
+    {
+        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', false, array(
+            'multiple' => false,
+            'expanded' => true,
+            'required' => false,
+            'choices' => array(
+                'Yes' => true,
+                'No' => false,
+            ),
+            'placeholder' => 'Select an option',
+        ));
+
+        $this->assertTrue(isset($form['placeholder']), 'Placeholder should be set');
+        $this->assertCount(3, $form, 'Each choice should become a new field, placeholder included');
+
+        $view = $form->createView();
+
+        $this->assertSame('0', $view->vars['value'], 'Value should be "0"');
+        $this->assertSame('1', $view->vars['choices'][0]->value);
+        $this->assertSame('0', $view->vars['choices'][1]->value, 'Choice "false" should have "0" as value');
+        $this->assertTrue($view->children[1]->vars['checked'], 'Choice "false" should be selected');
     }
 
     public function testExpandedChoicesOptionsAreFlattened()
@@ -200,7 +326,6 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
                 'Symfony' => array($obj1, $obj2, $obj3),
                 'Doctrine' => array($obj4, $obj5),
             ),
-            'choices_as_values' => true,
             'choice_name' => 'id',
         ));
 
@@ -338,7 +463,7 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             'multiple' => false,
             'expanded' => false,
             'choices' => array(
-                'EMPTY_CHOICE' => 'Empty',
+                'Empty' => 'EMPTY_CHOICE',
             ),
             'choice_value' => function () {
                 return '';
@@ -409,7 +534,6 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             'multiple' => false,
             'expanded' => false,
             'choices' => $this->objectChoices,
-            'choices_as_values' => true,
             'choice_label' => 'name',
             'choice_value' => 'id',
         ));
@@ -506,7 +630,6 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             'multiple' => true,
             'expanded' => false,
             'choices' => $this->objectChoices,
-            'choices_as_values' => true,
             'choice_label' => 'name',
             'choice_value' => 'id',
         ));
@@ -932,8 +1055,8 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             'multiple' => false,
             'expanded' => true,
             'choices' => array(
-                '' => 'Empty',
-                1 => 'Not empty',
+                'Empty' => '',
+                'Not empty' => 1,
             ),
         ));
 
@@ -954,7 +1077,6 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             'multiple' => false,
             'expanded' => true,
             'choices' => $this->objectChoices,
-            'choices_as_values' => true,
             'choice_label' => 'name',
             'choice_value' => 'id',
         ));
@@ -971,31 +1093,6 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
         $this->assertFalse($form[4]->getData());
         $this->assertNull($form[0]->getViewData());
         $this->assertSame('2', $form[1]->getViewData());
-        $this->assertNull($form[2]->getViewData());
-        $this->assertNull($form[3]->getViewData());
-        $this->assertNull($form[4]->getViewData());
-    }
-
-    public function testSubmitSingleExpandedNumericChoices()
-    {
-        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
-            'multiple' => false,
-            'expanded' => true,
-            'choices' => $this->numericChoices,
-        ));
-
-        $form->submit('1');
-
-        $this->assertSame(1, $form->getData());
-        $this->assertTrue($form->isSynchronized());
-
-        $this->assertFalse($form[0]->getData());
-        $this->assertTrue($form[1]->getData());
-        $this->assertFalse($form[2]->getData());
-        $this->assertFalse($form[3]->getData());
-        $this->assertFalse($form[4]->getData());
-        $this->assertNull($form[0]->getViewData());
-        $this->assertSame('1', $form[1]->getViewData());
         $this->assertNull($form[2]->getViewData());
         $this->assertNull($form[3]->getViewData());
         $this->assertNull($form[4]->getViewData());
@@ -1130,9 +1227,9 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             'multiple' => true,
             'expanded' => true,
             'choices' => array(
-                '' => 'Empty',
-                1 => 'Not Empty',
-                2 => 'Not Empty 2',
+                'Empty' => '',
+                'Not Empty' => 1,
+                'Not Empty 2' => 2,
             ),
         ));
 
@@ -1155,7 +1252,6 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             'multiple' => true,
             'expanded' => true,
             'choices' => $this->objectChoices,
-            'choices_as_values' => true,
             'choice_label' => 'name',
             'choice_value' => 'id',
         ));
@@ -1177,38 +1273,12 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
         $this->assertNull($form[4]->getViewData());
     }
 
-    public function testSubmitMultipleExpandedNumericChoices()
-    {
-        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
-            'multiple' => true,
-            'expanded' => true,
-            'choices' => $this->numericChoices,
-        ));
-
-        $form->submit(array('1', '2'));
-
-        $this->assertSame(array(1, 2), $form->getData());
-        $this->assertTrue($form->isSynchronized());
-
-        $this->assertFalse($form[0]->getData());
-        $this->assertTrue($form[1]->getData());
-        $this->assertTrue($form[2]->getData());
-        $this->assertFalse($form[3]->getData());
-        $this->assertFalse($form[4]->getData());
-        $this->assertNull($form[0]->getViewData());
-        $this->assertSame('1', $form[1]->getViewData());
-        $this->assertSame('2', $form[2]->getViewData());
-        $this->assertNull($form[3]->getViewData());
-        $this->assertNull($form[4]->getViewData());
-    }
-
     public function testSingleSelectedObjectChoices()
     {
         $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', $this->objectChoices[3], array(
             'multiple' => false,
             'expanded' => false,
             'choices' => $this->objectChoices,
-            'choices_as_values' => true,
             'choice_label' => 'name',
             'choice_value' => 'id',
         ));
@@ -1226,7 +1296,6 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             'multiple' => true,
             'expanded' => false,
             'choices' => $this->objectChoices,
-            'choices_as_values' => true,
             'choice_label' => 'name',
             'choice_value' => 'id',
         ));
@@ -1236,40 +1305,6 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
 
         $this->assertTrue($selectedChecker($view->vars['choices'][3]->value, $view->vars['value']));
         $this->assertFalse($selectedChecker($view->vars['choices'][1]->value, $view->vars['value']));
-    }
-
-    /*
-     * We need this functionality to create choice fields for Boolean types,
-     * e.g. false => 'No', true => 'Yes'
-     */
-    public function testSetDataSingleNonExpandedAcceptsBoolean()
-    {
-        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
-            'multiple' => false,
-            'expanded' => false,
-            'choices' => $this->numericChoices,
-        ));
-
-        $form->setData(false);
-
-        $this->assertFalse($form->getData());
-        $this->assertEquals('0', $form->getViewData());
-        $this->assertTrue($form->isSynchronized());
-    }
-
-    public function testSetDataMultipleNonExpandedAcceptsBoolean()
-    {
-        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
-            'multiple' => true,
-            'expanded' => false,
-            'choices' => $this->numericChoices,
-        ));
-
-        $form->setData(array(false, true));
-
-        $this->assertEquals(array(false, true), $form->getData());
-        $this->assertEquals(array('0', '1'), $form->getViewData());
-        $this->assertTrue($form->isSynchronized());
     }
 
     public function testPassRequiredToView()
@@ -1353,7 +1388,9 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             ->createNamedBuilder('parent', 'Symfony\Component\Form\Extension\Core\Type\FormType', null, array(
                 'translation_domain' => 'domain',
             ))
-            ->add('child', 'Symfony\Component\Form\Extension\Core\Type\ChoiceType')
+            ->add('child', 'Symfony\Component\Form\Extension\Core\Type\ChoiceType', array(
+                'choices' => array(),
+            ))
             ->getForm()
             ->createView();
 
@@ -1398,7 +1435,7 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
         ));
         $view = $form->createView();
 
-        $this->assertEquals($viewValue, $view->vars['placeholder']);
+        $this->assertSame($viewValue, $view->vars['placeholder']);
         $this->assertFalse($view->vars['placeholder_in_choices']);
     }
 
@@ -1412,7 +1449,7 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             'expanded' => $expanded,
             'required' => $required,
             'placeholder' => $placeholder,
-            'choices' => array('a' => 'A', '' => 'Empty'),
+            'choices' => array('Empty' => '', 'A' => 'a'),
         ));
         $view = $form->createView();
 
@@ -1438,9 +1475,9 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
             array(false, true, false, '', 'None'),
             array(false, true, false, null, null),
             array(false, true, false, false, null),
-            array(false, true, true, 'foobar', 'foobar'),
-            // radios should never have an empty label
-            array(false, true, true, '', 'None'),
+            // required radios should never have a placeholder
+            array(false, true, true, 'foobar', null),
+            array(false, true, true, '', null),
             array(false, true, true, null, null),
             array(false, true, true, false, null),
             // multiple non-expanded
@@ -1466,7 +1503,7 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
 
     public function testPassChoicesToView()
     {
-        $choices = array('a' => 'A', 'b' => 'B', 'c' => 'C', 'd' => 'D');
+        $choices = array('A' => 'a', 'B' => 'b', 'C' => 'c', 'D' => 'd');
         $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
             'choices' => $choices,
         ));
@@ -1482,7 +1519,7 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
 
     public function testPassPreferredChoicesToView()
     {
-        $choices = array('a' => 'A', 'b' => 'B', 'c' => 'C', 'd' => 'D');
+        $choices = array('A' => 'a', 'B' => 'b', 'C' => 'c', 'D' => 'd');
         $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
             'choices' => $choices,
             'preferred_choices' => array('b', 'd'),
@@ -1534,7 +1571,6 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
         $obj4 = (object) array('value' => 'd', 'label' => 'D');
         $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
             'choices' => array($obj1, $obj2, $obj3, $obj4),
-            'choices_as_values' => true,
             'choice_label' => 'label',
             'choice_value' => 'value',
         ));
@@ -1577,7 +1613,6 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
 
         $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\ChoiceType', null, array(
             'choices' => array($obj1, $obj2, $obj3, $obj4),
-            'choices_as_values' => true,
             'choice_label' => 'label',
             'choice_value' => 'value',
             // Used to break because "data_class" was inferred, which needs to
@@ -1587,5 +1622,31 @@ class ChoiceTypeTest extends \Symfony\Component\Form\Test\TypeTestCase
 
         // Trigger data initialization
         $form->getViewData();
+    }
+
+    /**
+     * This covers the case when:
+     *  - Custom choice type added after a choice type.
+     *  - Custom type is expanded.
+     *  - Custom type replaces 'choices' normalizer with a custom one.
+     * In this case, custom type should not inherit labels from the first added choice type.
+     */
+    public function testCustomChoiceTypeDoesNotInheritChoiceLabels()
+    {
+        $builder = $this->factory->createBuilder();
+        $builder->add('choice', 'Symfony\Component\Form\Extension\Core\Type\ChoiceType', array(
+                'choices' => array(
+                    '1' => '1',
+                    '2' => '2',
+                ),
+            )
+        );
+        $builder->add('subChoice', 'Symfony\Component\Form\Tests\Fixtures\ChoiceSubType');
+        $form = $builder->getForm();
+
+        // The default 'choices' normalizer would fill the $choiceLabels, but it has been replaced
+        // in the custom choice type, so $choiceLabels->labels remains empty array.
+        // In this case the 'choice_label' closure returns null and not the closure from the first choice type.
+        $this->assertNull($form->get('subChoice')->getConfig()->getOption('choice_label'));
     }
 }

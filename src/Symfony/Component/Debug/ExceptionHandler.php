@@ -11,7 +11,6 @@
 
 namespace Symfony\Component\Debug;
 
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Debug\Exception\FlattenException;
 use Symfony\Component\Debug\Exception\OutOfMemoryException;
 
@@ -38,12 +37,6 @@ class ExceptionHandler
 
     public function __construct($debug = true, $charset = null, $fileLinkFormat = null)
     {
-        if (false !== strpos($charset, '%')) {
-            // Swap $charset and $fileLinkFormat for BC reasons
-            $pivot = $fileLinkFormat;
-            $fileLinkFormat = $charset;
-            $charset = $pivot;
-        }
         $this->debug = $debug;
         $this->charset = $charset ?: ini_get('default_charset') ?: 'UTF-8';
         $this->fileLinkFormat = $fileLinkFormat ?: ini_get('xdebug.file_link_format') ?: get_cfg_var('xdebug.file_link_format');
@@ -78,11 +71,8 @@ class ExceptionHandler
      *
      * @return callable|null The previous exception handler if any
      */
-    public function setHandler($handler)
+    public function setHandler(callable $handler = null)
     {
-        if (null !== $handler && !is_callable($handler)) {
-            throw new \LogicException('The exception handler must be a valid PHP callable.');
-        }
         $old = $this->handler;
         $this->handler = $handler;
 
@@ -228,7 +218,7 @@ class ExceptionHandler
                     $ind = $count - $position + 1;
                     $class = $this->formatClass($e['class']);
                     $message = nl2br($this->escapeHtml($e['message']));
-                    $content .= sprintf(<<<EOF
+                    $content .= sprintf(<<<'EOF'
                         <h2 class="block_exception clear_fix">
                             <span class="exception_counter">%d/%d</span>
                             <span class="exception_title">%s%s:</span>
@@ -279,7 +269,7 @@ EOF;
      */
     public function getStylesheet(FlattenException $exception)
     {
-        return <<<EOF
+        return <<<'EOF'
             .sf-reset { font: 11px Verdana, Arial, sans-serif; color: #333 }
             .sf-reset .clear { clear:both; height:0; font-size:0; line-height:0; }
             .sf-reset .clear_fix:after { display:block; height:0; clear:both; visibility:hidden; }

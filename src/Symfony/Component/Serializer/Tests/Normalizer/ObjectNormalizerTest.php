@@ -18,6 +18,7 @@ use Symfony\Component\Serializer\Serializer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Serializer\Tests\Fixtures\CircularReferenceDummy;
+use Symfony\Component\Serializer\Tests\Fixtures\MaxDepthDummy;
 use Symfony\Component\Serializer\Tests\Fixtures\SiblingHolder;
 use Symfony\Component\Serializer\Mapping\Loader\AnnotationLoader;
 use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
@@ -29,7 +30,7 @@ use Symfony\Component\Serializer\Tests\Fixtures\GroupDummy;
 class ObjectNormalizerTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * @var ObjectNormalizerTest
+     * @var ObjectNormalizer
      */
     private $normalizer;
     /**
@@ -169,7 +170,7 @@ class ObjectNormalizerTest extends \PHPUnit_Framework_TestCase
 
         $this->assertEquals(array(
             'bar' => 'bar',
-        ), $this->normalizer->normalize($obj, null, array('groups' => array('c'))));
+        ), $this->normalizer->normalize($obj, null, array(ObjectNormalizer::GROUPS => array('c'))));
 
         $this->assertEquals(array(
             'symfony' => 'symfony',
@@ -178,7 +179,7 @@ class ObjectNormalizerTest extends \PHPUnit_Framework_TestCase
             'bar' => 'bar',
             'kevin' => 'kevin',
             'coopTilleuls' => 'coopTilleuls',
-        ), $this->normalizer->normalize($obj, null, array('groups' => array('a', 'c'))));
+        ), $this->normalizer->normalize($obj, null, array(ObjectNormalizer::GROUPS => array('a', 'c'))));
     }
 
     public function testGroupsDenormalize()
@@ -196,7 +197,7 @@ class ObjectNormalizerTest extends \PHPUnit_Framework_TestCase
             $toNormalize,
             'Symfony\Component\Serializer\Tests\Fixtures\GroupDummy',
             null,
-            array('groups' => array('a'))
+            array(ObjectNormalizer::GROUPS => array('a'))
         );
         $this->assertEquals($obj, $normalized);
 
@@ -206,9 +207,21 @@ class ObjectNormalizerTest extends \PHPUnit_Framework_TestCase
             $toNormalize,
             'Symfony\Component\Serializer\Tests\Fixtures\GroupDummy',
             null,
-            array('groups' => array('a', 'b'))
+            array(ObjectNormalizer::GROUPS => array('a', 'b'))
         );
         $this->assertEquals($obj, $normalized);
+    }
+
+    public function testNormalizeNoPropertyInGroup()
+    {
+        $classMetadataFactory = new ClassMetadataFactory(new AnnotationLoader(new AnnotationReader()));
+        $this->normalizer = new ObjectNormalizer($classMetadataFactory);
+        $this->normalizer->setSerializer($this->serializer);
+
+        $obj = new GroupDummy();
+        $obj->setFoo('foo');
+
+        $this->assertEquals(array(), $this->normalizer->normalize($obj, null, array('groups' => array('notExist'))));
     }
 
     public function testGroupsNormalizeWithNameConverter()
@@ -228,7 +241,7 @@ class ObjectNormalizerTest extends \PHPUnit_Framework_TestCase
                 'foo_bar' => '@dunglas',
                 'symfony' => '@coopTilleuls',
             ),
-            $this->normalizer->normalize($obj, null, array('groups' => array('name_converter')))
+            $this->normalizer->normalize($obj, null, array(ObjectNormalizer::GROUPS => array('name_converter')))
         );
     }
 
@@ -249,7 +262,7 @@ class ObjectNormalizerTest extends \PHPUnit_Framework_TestCase
                 'foo_bar' => '@dunglas',
                 'symfony' => '@coopTilleuls',
                 'coop_tilleuls' => 'les-tilleuls.coop',
-            ), 'Symfony\Component\Serializer\Tests\Fixtures\GroupDummy', null, array('groups' => array('name_converter')))
+            ), 'Symfony\Component\Serializer\Tests\Fixtures\GroupDummy', null, array(ObjectNormalizer::GROUPS => array('name_converter')))
         );
     }
 
@@ -428,6 +441,63 @@ class ObjectNormalizerTest extends \PHPUnit_Framework_TestCase
     {
         $this->assertFalse($this->normalizer->supportsNormalization(new \ArrayObject()));
     }
+
+    public function testNormalizeStatic()
+    {
+        $this->assertEquals(array('foo' => 'K'), $this->normalizer->normalize(new ObjectWithStaticPropertiesAndMethods()));
+    }
+
+    public function testNormalizeNotSerializableContext()
+    {
+        $objectDummy = new ObjectDummy();
+        $expected = array(
+            'foo' => null,
+            'baz' => null,
+            'fooBar' => '',
+            'camelCase' => null,
+            'object' => null,
+            'bar' => null,
+        );
+
+        $this->assertEquals($expected, $this->normalizer->normalize($objectDummy, null, array('not_serializable' => function () {
+        })));
+    }
+
+    public function testMaxDepth()
+    {
+        $classMetadataFactory = new ClassMetadataFactory(new AnnotationLoader(new AnnotationReader()));
+        $this->normalizer = new ObjectNormalizer($classMetadataFactory);
+        $serializer = new Serializer(array($this->normalizer));
+        $this->normalizer->setSerializer($serializer);
+
+        $level1 = new MaxDepthDummy();
+        $level1->foo = 'level1';
+
+        $level2 = new MaxDepthDummy();
+        $level2->foo = 'level2';
+        $level1->child = $level2;
+
+        $level3 = new MaxDepthDummy();
+        $level3->foo = 'level3';
+        $level2->child = $level3;
+
+        $result = $serializer->normalize($level1, null, array(ObjectNormalizer::ENABLE_MAX_DEPTH => true));
+
+        $expected = array(
+            'bar' => null,
+            'foo' => 'level1',
+            'child' => array(
+                    'bar' => null,
+                    'foo' => 'level2',
+                    'child' => array(
+                            'bar' => null,
+                            'child' => null,
+                        ),
+                ),
+        );
+
+        $this->assertEquals($expected, $result);
+    }
 }
 
 class ObjectDummy
@@ -575,5 +645,16 @@ class ObjectConstructorArgsWithDefaultValueDummy
     public function otherMethod()
     {
         throw new \RuntimeException('Dummy::otherMethod() should not be called');
+    }
+}
+
+class ObjectWithStaticPropertiesAndMethods
+{
+    public $foo = 'K';
+    public static $bar = 'A';
+
+    public static function getBaz()
+    {
+        return 'L';
     }
 }

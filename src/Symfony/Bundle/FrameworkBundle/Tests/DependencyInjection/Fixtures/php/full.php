@@ -3,9 +3,9 @@
 $container->loadFromExtension('framework', array(
     'secret' => 's3cr3t',
     'default_locale' => 'fr',
+    'csrf_protection' => true,
     'form' => array(
         'csrf_protection' => array(
-            'enabled' => true,
             'field_name' => '_csrf',
         ),
     ),
@@ -56,7 +56,7 @@ $container->loadFromExtension('framework', array(
     ),
     'validation' => array(
         'enabled' => true,
-        'cache' => 'apc',
+        'cache' => 'validator.mapping.cache.doctrine.apc',
     ),
     'annotations' => array(
         'cache' => 'file',

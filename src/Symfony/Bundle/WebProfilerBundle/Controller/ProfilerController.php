@@ -96,7 +96,7 @@ class ProfilerController
         }
 
         if (!$profile = $this->profiler->loadProfile($token)) {
-            return new Response($this->twig->render('@WebProfiler/Profiler/info.html.twig', array('about' => 'no_token', 'token' => $token)), 200, array('Content-Type' => 'text/html'));
+            return new Response($this->twig->render('@WebProfiler/Profiler/info.html.twig', array('about' => 'no_token', 'token' => $token, 'request' => $request)), 200, array('Content-Type' => 'text/html'));
         }
 
         if (!$profile->hasCollector($panel)) {
@@ -117,34 +117,16 @@ class ProfilerController
     }
 
     /**
-     * Purges all tokens.
-     *
-     * @return Response A Response instance
-     *
-     * @throws NotFoundHttpException
-     */
-    public function purgeAction()
-    {
-        if (null === $this->profiler) {
-            throw new NotFoundHttpException('The profiler must be enabled.');
-        }
-
-        $this->profiler->disable();
-        $this->profiler->purge();
-
-        return new RedirectResponse($this->generator->generate('_profiler_info', array('about' => 'purge')), 302, array('Content-Type' => 'text/html'));
-    }
-
-    /**
      * Displays information page.
      *
-     * @param string $about The about message
+     * @param Request $request The current HTTP Request
+     * @param string  $about   The about message
      *
      * @return Response A Response instance
      *
      * @throws NotFoundHttpException
      */
-    public function infoAction($about)
+    public function infoAction(Request $request, $about)
     {
         if (null === $this->profiler) {
             throw new NotFoundHttpException('The profiler must be enabled.');
@@ -154,6 +136,7 @@ class ProfilerController
 
         return new Response($this->twig->render('@WebProfiler/Profiler/info.html.twig', array(
             'about' => $about,
+            'request' => $request,
         )), 200, array('Content-Type' => 'text/html'));
     }
 
@@ -203,6 +186,7 @@ class ProfilerController
         }
 
         return new Response($this->twig->render('@WebProfiler/Profiler/toolbar.html.twig', array(
+            'request' => $request,
             'position' => $position,
             'profile' => $profile,
             'templates' => $this->getTemplateManager()->getTemplates($profile),
@@ -232,19 +216,21 @@ class ProfilerController
         if (null === $session = $request->getSession()) {
             $ip =
             $method =
+            $statusCode =
             $url =
             $start =
             $end =
             $limit =
             $token = null;
         } else {
-            $ip = $session->get('_profiler_search_ip');
-            $method = $session->get('_profiler_search_method');
-            $url = $session->get('_profiler_search_url');
-            $start = $session->get('_profiler_search_start');
-            $end = $session->get('_profiler_search_end');
-            $limit = $session->get('_profiler_search_limit');
-            $token = $session->get('_profiler_search_token');
+            $ip = $request->query->get('ip', $session->get('_profiler_search_ip'));
+            $method = $request->query->get('method', $session->get('_profiler_search_method'));
+            $statusCode = $request->query->get('status_code', $session->get('_profiler_search_status_code'));
+            $url = $request->query->get('url', $session->get('_profiler_search_url'));
+            $start = $request->query->get('start', $session->get('_profiler_search_start'));
+            $end = $request->query->get('end', $session->get('_profiler_search_end'));
+            $limit = $request->query->get('limit', $session->get('_profiler_search_limit'));
+            $token = $request->query->get('token', $session->get('_profiler_search_token'));
         }
 
         return new Response(
@@ -252,6 +238,7 @@ class ProfilerController
                 'token' => $token,
                 'ip' => $ip,
                 'method' => $method,
+                'status_code' => $statusCode,
                 'url' => $url,
                 'start' => $start,
                 'end' => $end,
@@ -285,17 +272,20 @@ class ProfilerController
 
         $ip = $request->query->get('ip');
         $method = $request->query->get('method');
+        $statusCode = $request->query->get('status_code');
         $url = $request->query->get('url');
         $start = $request->query->get('start', null);
         $end = $request->query->get('end', null);
         $limit = $request->query->get('limit');
 
         return new Response($this->twig->render('@WebProfiler/Profiler/results.html.twig', array(
+            'request' => $request,
             'token' => $token,
             'profile' => $profile,
-            'tokens' => $this->profiler->find($ip, $url, $limit, $method, $start, $end),
+            'tokens' => $this->profiler->find($ip, $url, $limit, $method, $start, $end, $statusCode),
             'ip' => $ip,
             'method' => $method,
+            'status_code' => $statusCode,
             'url' => $url,
             'start' => $start,
             'end' => $end,
@@ -323,6 +313,7 @@ class ProfilerController
 
         $ip = preg_replace('/[^:\d\.]/', '', $request->query->get('ip'));
         $method = $request->query->get('method');
+        $statusCode = $request->query->get('status_code');
         $url = $request->query->get('url');
         $start = $request->query->get('start', null);
         $end = $request->query->get('end', null);
@@ -332,6 +323,7 @@ class ProfilerController
         if (null !== $session = $request->getSession()) {
             $session->set('_profiler_search_ip', $ip);
             $session->set('_profiler_search_method', $method);
+            $session->set('_profiler_search_status_code', $statusCode);
             $session->set('_profiler_search_url', $url);
             $session->set('_profiler_search_start', $start);
             $session->set('_profiler_search_end', $end);
@@ -343,12 +335,13 @@ class ProfilerController
             return new RedirectResponse($this->generator->generate('_profiler', array('token' => $token)), 302, array('Content-Type' => 'text/html'));
         }
 
-        $tokens = $this->profiler->find($ip, $url, $limit, $method, $start, $end);
+        $tokens = $this->profiler->find($ip, $url, $limit, $method, $start, $end, $statusCode);
 
         return new RedirectResponse($this->generator->generate('_profiler_search_results', array(
             'token' => $tokens ? $tokens[0]['token'] : 'empty',
             'ip' => $ip,
             'method' => $method,
+            'status_code' => $statusCode,
             'url' => $url,
             'start' => $start,
             'end' => $end,

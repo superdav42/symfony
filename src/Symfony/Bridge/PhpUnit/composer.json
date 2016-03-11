@@ -23,12 +23,15 @@
     },
     "autoload": {
         "files": [ "bootstrap.php" ],
-        "psr-4": { "Symfony\\Bridge\\PhpUnit\\": "" }
+        "psr-4": { "Symfony\\Bridge\\PhpUnit\\": "" },
+        "exclude-from-classmap": [
+            "/Tests/"
+        ]
     },
     "minimum-stability": "dev",
     "extra": {
         "branch-alias": {
-            "dev-master": "3.0-dev"
+            "dev-master": "3.1-dev"
         }
     }
 }

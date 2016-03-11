@@ -16,10 +16,10 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Config\FileLocator;
-use Symfony\Component\Console\Question\ChoiceQuestion;
 
 /**
  * A console command for retrieving information about services.
@@ -51,7 +51,7 @@ class ContainerDebugCommand extends ContainerAwareCommand
                 new InputOption('raw', null, InputOption::VALUE_NONE, 'To output raw description'),
             ))
             ->setDescription('Displays current services for an application')
-            ->setHelp(<<<EOF
+            ->setHelp(<<<'EOF'
 The <info>%command.name%</info> command displays all configured <comment>public</comment> services:
 
   <info>php %command.full_name%</info>
@@ -91,6 +91,7 @@ EOF
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $io = new SymfonyStyle($input, $output);
         $this->validateInput($input);
 
         if ($input->getOption('parameters')) {
@@ -107,7 +108,7 @@ EOF
             $options = array('tag' => $tag, 'show_private' => $input->getOption('show-private'));
         } elseif ($name = $input->getArgument('name')) {
             $object = $this->getContainerBuilder();
-            $name = $this->findProperServiceName($input, $output, $object, $name);
+            $name = $this->findProperServiceName($input, $io, $object, $name);
             $options = array('id' => $name);
         } else {
             $object = $this->getContainerBuilder();
@@ -117,10 +118,11 @@ EOF
         $helper = new DescriptorHelper();
         $options['format'] = $input->getOption('format');
         $options['raw_text'] = $input->getOption('raw');
+        $options['output'] = $io;
         $helper->describe($output, $object, $options);
 
         if (!$input->getArgument('name') && $input->isInteractive()) {
-            $output->writeln('To search for a service, re-run this command with a search term. <comment>debug:container log</comment>');
+            $io->comment('To search for a specific service, re-run this command with a search term. (e.g. <comment>debug:container log</comment>)');
         }
     }
 
@@ -179,7 +181,7 @@ EOF
         return $this->containerBuilder = $container;
     }
 
-    private function findProperServiceName(InputInterface $input, OutputInterface $output, ContainerBuilder $builder, $name)
+    private function findProperServiceName(InputInterface $input, SymfonyStyle $io, ContainerBuilder $builder, $name)
     {
         if ($builder->has($name) || !$input->isInteractive()) {
             return $name;
@@ -190,10 +192,9 @@ EOF
             throw new \InvalidArgumentException(sprintf('No services found that match "%s".', $name));
         }
 
-        $question = new ChoiceQuestion('Choose a number for more information on the service', $matchingServices);
-        $question->setErrorMessage('Service %s is invalid.');
+        $default = 1 === count($matchingServices) ? $matchingServices[0] : null;
 
-        return $this->getHelper('question')->ask($input, $output, $question);
+        return $io->choice('Select one of the following services to display its information', $matchingServices, $default);
     }
 
     private function findServiceIdsContaining(ContainerBuilder $builder, $name)

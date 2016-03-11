@@ -323,51 +323,6 @@ class ResolvedFormTypeTest extends \PHPUnit_Framework_TestCase
         $this->resolvedType->finishView($view, $form, $options);
     }
 
-    /**
-     * @dataProvider provideValidNames
-     */
-    public function testGetName($name)
-    {
-        $this->type->expects($this->once())
-            ->method('getName')
-            ->willReturn($name);
-
-        $resolvedType = new ResolvedFormType($this->type);
-
-        $this->assertSame($name, $resolvedType->getName());
-    }
-
-    /**
-     * @dataProvider provideInvalidNames
-     * @expectedException \Symfony\Component\Form\Exception\InvalidArgumentException
-     */
-    public function testGetNameFailsIfInvalidChars($name)
-    {
-        $this->type->expects($this->once())
-            ->method('getName')
-            ->willReturn($name);
-
-        new ResolvedFormType($this->type);
-    }
-
-    public function provideValidNames()
-    {
-        return array(
-            array('text'),
-            array('type123'),
-            array('my_type123'),
-        );
-    }
-
-    public function provideInvalidNames()
-    {
-        return array(
-            array('my-type'),
-            array('my[type]'),
-            array('my{type}'),
-        );
-    }
-
     public function testGetBlockPrefix()
     {
         $this->type->expects($this->once())
@@ -406,7 +361,7 @@ class ResolvedFormTypeTest extends \PHPUnit_Framework_TestCase
      */
     private function getMockFormType($typeClass = 'Symfony\Component\Form\AbstractType')
     {
-        return $this->getMock($typeClass, array('getName', 'getBlockPrefix', 'configureOptions', 'finishView', 'buildView', 'buildForm'));
+        return $this->getMock($typeClass, array('getBlockPrefix', 'configureOptions', 'finishView', 'buildView', 'buildForm'));
     }
 
     /**

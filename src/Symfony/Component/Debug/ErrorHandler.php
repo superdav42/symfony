@@ -90,6 +90,7 @@ class ErrorHandler
 
     private $loggedTraces = array();
     private $isRecursive = 0;
+    private $isRoot = false;
     private $exceptionHandler;
     private $bootstrappingLogger;
 
@@ -113,13 +114,16 @@ class ErrorHandler
             register_shutdown_function(__CLASS__.'::handleFatalError');
         }
 
-        $levels = -1;
-
         if ($handlerIsNew = null === $handler) {
             $handler = new static();
         }
 
-        $prev = set_error_handler(array($handler, 'handleError'), $handler->thrownErrors | $handler->loggedErrors);
+        if (null === $prev = set_error_handler(array($handler, 'handleError'))) {
+            restore_error_handler();
+            // Specifying the error types earlier would expose us to https://bugs.php.net/63206
+            set_error_handler(array($handler, 'handleError'), $handler->thrownErrors | $handler->loggedErrors);
+            $handler->isRoot = true;
+        }
 
         if ($handlerIsNew && is_array($prev) && $prev[0] instanceof self) {
             $handler = $prev[0];
@@ -131,7 +135,7 @@ class ErrorHandler
             restore_error_handler();
         }
 
-        $handler->throwAt($levels & $handler->thrownErrors, true);
+        $handler->throwAt(E_ALL & $handler->thrownErrors, true);
 
         return $handler;
     }
@@ -151,7 +155,7 @@ class ErrorHandler
      * @param array|int       $levels  An array map of E_* to LogLevel::* or an integer bit field of E_* constants
      * @param bool            $replace Whether to replace or not any existing logger
      */
-    public function setDefaultLogger(LoggerInterface $logger, $levels = null, $replace = false)
+    public function setDefaultLogger(LoggerInterface $logger, $levels = E_ALL, $replace = false)
     {
         $loggers = array();
 
@@ -163,7 +167,7 @@ class ErrorHandler
             }
         } else {
             if (null === $levels) {
-                $levels = E_ALL | E_STRICT;
+                $levels = E_ALL;
             }
             foreach ($this->loggers as $type => $log) {
                 if (($type & $levels) && (empty($log[0]) || $replace || $log[0] === $this->bootstrappingLogger)) {
@@ -235,14 +239,9 @@ class ErrorHandler
      * @param callable $handler A handler that will be called on Exception
      *
      * @return callable|null The previous exception handler
-     *
-     * @throws \InvalidArgumentException
      */
-    public function setExceptionHandler($handler)
+    public function setExceptionHandler(callable $handler = null)
     {
-        if (null !== $handler && !is_callable($handler)) {
-            throw new \LogicException('The exception handler must be a valid PHP callable.');
-        }
         $prev = $this->exceptionHandler;
         $this->exceptionHandler = $handler;
 
@@ -260,7 +259,7 @@ class ErrorHandler
     public function throwAt($levels, $replace = false)
     {
         $prev = $this->thrownErrors;
-        $this->thrownErrors = (E_ALL | E_STRICT) & ($levels | E_RECOVERABLE_ERROR | E_USER_ERROR) & ~E_USER_DEPRECATED & ~E_DEPRECATED;
+        $this->thrownErrors = ($levels | E_RECOVERABLE_ERROR | E_USER_ERROR) & ~E_USER_DEPRECATED & ~E_DEPRECATED;
         if (!$replace) {
             $this->thrownErrors |= $prev;
         }
@@ -332,12 +331,16 @@ class ErrorHandler
     private function reRegister($prev)
     {
         if ($prev !== $this->thrownErrors | $this->loggedErrors) {
-            $handler = set_error_handler('var_dump', 0);
+            $handler = set_error_handler('var_dump');
             $handler = is_array($handler) ? $handler[0] : null;
             restore_error_handler();
             if ($handler === $this) {
                 restore_error_handler();
-                set_error_handler(array($this, 'handleError'), $this->thrownErrors | $this->loggedErrors);
+                if ($this->isRoot) {
+                    set_error_handler(array($this, 'handleError'), $this->thrownErrors | $this->loggedErrors);
+                } else {
+                    set_error_handler(array($this, 'handleError'));
+                }
             }
         }
     }
@@ -468,11 +471,8 @@ class ErrorHandler
             try {
                 $this->isRecursive = true;
                 $this->loggers[$type][0]->log(($type & $level) ? $this->loggers[$type][1] : LogLevel::DEBUG, $message, $e);
+            } finally {
                 $this->isRecursive = false;
-            } catch (\Exception $e) {
-                $this->isRecursive = false;
-
-                throw $e;
             }
         }
 
@@ -562,7 +562,7 @@ class ErrorHandler
 
         self::$reservedMemory = null;
 
-        $handler = set_error_handler('var_dump', 0);
+        $handler = set_error_handler('var_dump');
         $handler = is_array($handler) ? $handler[0] : null;
         restore_error_handler();
 

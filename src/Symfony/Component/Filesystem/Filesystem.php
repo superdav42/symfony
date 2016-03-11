@@ -115,6 +115,10 @@ class Filesystem
     public function exists($files)
     {
         foreach ($this->toIterator($files) as $file) {
+            if ('\\' === DIRECTORY_SEPARATOR && strlen($file) > 258) {
+                throw new IOException('Could not check if file exist because path length exceeds 258 characters.', 0, null, $file);
+            }
+
             if (!file_exists($file)) {
                 return false;
             }
@@ -154,27 +158,23 @@ class Filesystem
         $files = iterator_to_array($this->toIterator($files));
         $files = array_reverse($files);
         foreach ($files as $file) {
-            if (!file_exists($file) && !is_link($file)) {
+            if (@(unlink($file) || rmdir($file))) {
                 continue;
             }
-
-            if (is_dir($file) && !is_link($file)) {
+            if (is_link($file)) {
+                // See https://bugs.php.net/52176
+                $error = error_get_last();
+                throw new IOException(sprintf('Failed to remove symlink "%s": %s.', $file, $error['message']));
+            } elseif (is_dir($file)) {
                 $this->remove(new \FilesystemIterator($file));
 
-                if (true !== @rmdir($file)) {
-                    throw new IOException(sprintf('Failed to remove directory "%s".', $file), 0, null, $file);
+                if (!@rmdir($file)) {
+                    $error = error_get_last();
+                    throw new IOException(sprintf('Failed to remove directory "%s": %s.', $file, $error['message']));
                 }
-            } else {
-                // https://bugs.php.net/bug.php?id=52176
-                if ('\\' === DIRECTORY_SEPARATOR && is_dir($file)) {
-                    if (true !== @rmdir($file)) {
-                        throw new IOException(sprintf('Failed to remove file "%s".', $file), 0, null, $file);
-                    }
-                } else {
-                    if (true !== @unlink($file)) {
-                        throw new IOException(sprintf('Failed to remove file "%s".', $file), 0, null, $file);
-                    }
-                }
+            } elseif (file_exists($file)) {
+                $error = error_get_last();
+                throw new IOException(sprintf('Failed to remove file "%s": %s.', $file, $error['message']));
             }
         }
     }
@@ -192,11 +192,11 @@ class Filesystem
     public function chmod($files, $mode, $umask = 0000, $recursive = false)
     {
         foreach ($this->toIterator($files) as $file) {
-            if ($recursive && is_dir($file) && !is_link($file)) {
-                $this->chmod(new \FilesystemIterator($file), $mode, $umask, true);
-            }
             if (true !== @chmod($file, $mode & ~$umask)) {
                 throw new IOException(sprintf('Failed to chmod file "%s".', $file), 0, null, $file);
+            }
+            if ($recursive && is_dir($file) && !is_link($file)) {
+                $this->chmod(new \FilesystemIterator($file), $mode, $umask, true);
             }
         }
     }
@@ -268,13 +268,29 @@ class Filesystem
     public function rename($origin, $target, $overwrite = false)
     {
         // we check that target does not exist
-        if (!$overwrite && is_readable($target)) {
+        if (!$overwrite && $this->isReadable($target)) {
             throw new IOException(sprintf('Cannot rename because the target "%s" already exists.', $target), 0, null, $target);
         }
 
         if (true !== @rename($origin, $target)) {
             throw new IOException(sprintf('Cannot rename "%s" to "%s".', $origin, $target), 0, null, $target);
         }
+    }
+
+    /**
+     * Tells whether a file exists and is readable.
+     *
+     * @param string $filename Path to the file.
+     *
+     * @throws IOException When windows path is longer than 258 characters
+     */
+    private function isReadable($filename)
+    {
+        if ('\\' === DIRECTORY_SEPARATOR && strlen($filename) > 258) {
+            throw new IOException('Could not check if file is readable because path length exceeds 258 characters.', 0, null, $filename);
+        }
+
+        return is_readable($filename);
     }
 
     /**
@@ -288,10 +304,15 @@ class Filesystem
      */
     public function symlink($originDir, $targetDir, $copyOnWindows = false)
     {
-        if ('\\' === DIRECTORY_SEPARATOR && $copyOnWindows) {
-            $this->mirror($originDir, $targetDir);
+        if ('\\' === DIRECTORY_SEPARATOR) {
+            $originDir = strtr($originDir, '/', '\\');
+            $targetDir = strtr($targetDir, '/', '\\');
 
-            return;
+            if ($copyOnWindows) {
+                $this->mirror($originDir, $targetDir);
+
+                return;
+            }
         }
 
         $this->mkdir(dirname($targetDir));
@@ -345,8 +366,13 @@ class Filesystem
         // Determine how deep the start path is relative to the common path (ie, "web/bundles" = 2 levels)
         $depth = count($startPathArr) - $index;
 
-        // Repeated "../" for each level need to reach the common path
-        $traverser = str_repeat('../', $depth);
+        // When we need to traverse from the start, and we are starting from a root path, don't add '../'
+        if ('/' === $startPath[0] && 0 === $index && 1 === $depth) {
+            $traverser = '';
+        } else {
+            // Repeated "../" for each level need to reach the common path
+            $traverser = str_repeat('../', $depth);
+        }
 
         $endPathRemainder = implode('/', array_slice($endPathArr, $index));
 
@@ -408,7 +434,7 @@ class Filesystem
             $target = str_replace($originDir, $targetDir, $file->getPathname());
 
             if ($copyOnWindows) {
-                if (is_link($file) || is_file($file)) {
+                if (is_file($file)) {
                     $this->copy($file, $target, isset($options['override']) ? $options['override'] : false);
                 } elseif (is_dir($file)) {
                     $this->mkdir($target);
@@ -417,7 +443,7 @@ class Filesystem
                 }
             } else {
                 if (is_link($file)) {
-                    $this->symlink($file->getRealPath(), $target);
+                    $this->symlink($file->getLinkTarget(), $target);
                 } elseif (is_dir($file)) {
                     $this->mkdir($target);
                 } elseif (is_file($file)) {
@@ -438,13 +464,65 @@ class Filesystem
      */
     public function isAbsolutePath($file)
     {
-        return (strspn($file, '/\\', 0, 1)
+        return strspn($file, '/\\', 0, 1)
             || (strlen($file) > 3 && ctype_alpha($file[0])
                 && substr($file, 1, 1) === ':'
-                && (strspn($file, '/\\', 2, 1))
+                && strspn($file, '/\\', 2, 1)
             )
             || null !== parse_url($file, PHP_URL_SCHEME)
-        );
+        ;
+    }
+
+    /**
+     * Creates a temporary file with support for custom stream wrappers.
+     *
+     * @param string $dir    The directory where the temporary filename will be created.
+     * @param string $prefix The prefix of the generated temporary filename.
+     *                       Note: Windows uses only the first three characters of prefix.
+     *
+     * @return string The new temporary filename (with path), or throw an exception on failure.
+     */
+    public function tempnam($dir, $prefix)
+    {
+        list($scheme, $hierarchy) = $this->getSchemeAndHierarchy($dir);
+
+        // If no scheme or scheme is "file" create temp file in local filesystem
+        if (null === $scheme || 'file' === $scheme) {
+            $tmpFile = tempnam($hierarchy, $prefix);
+
+            // If tempnam failed or no scheme return the filename otherwise prepend the scheme
+            if (false !== $tmpFile) {
+                if (null !== $scheme) {
+                    return $scheme.'://'.$tmpFile;
+                }
+
+                return $tmpFile;
+            }
+
+            throw new IOException('A temporary file could not be created.');
+        }
+
+        // Loop until we create a valid temp file or have reached 10 attempts
+        for ($i = 0; $i < 10; ++$i) {
+            // Create a unique filename
+            $tmpFile = $dir.'/'.$prefix.uniqid(mt_rand(), true);
+
+            // Use fopen instead of file_exists as some streams do not support stat
+            // Use mode 'x+' to atomically check existence and create to avoid a TOCTOU vulnerability
+            $handle = @fopen($tmpFile, 'x+');
+
+            // If unsuccessful restart the loop
+            if (false === $handle) {
+                continue;
+            }
+
+            // Close the file if it was successfully opened
+            @fclose($handle);
+
+            return $tmpFile;
+        }
+
+        throw new IOException('A temporary file could not be created.');
     }
 
     /**
@@ -465,12 +543,16 @@ class Filesystem
             throw new IOException(sprintf('Unable to write to the "%s" directory.', $dir), 0, null, $dir);
         }
 
-        $tmpFile = tempnam($dir, basename($filename));
+        // Will create a temp file with 0600 access rights
+        // when the filesystem supports chmod.
+        $tmpFile = $this->tempnam($dir, basename($filename));
 
         if (false === @file_put_contents($tmpFile, $content)) {
             throw new IOException(sprintf('Failed to write file "%s".', $filename), 0, null, $filename);
         }
 
+        // Ignore for filesystems that do not support umask
+        @chmod($tmpFile, 0666);
         $this->rename($tmpFile, $filename, true);
     }
 
@@ -486,5 +568,19 @@ class Filesystem
         }
 
         return $files;
+    }
+
+    /**
+     * Gets a 2-tuple of scheme (may be null) and hierarchical part of a filename (e.g. file:///tmp -> array(file, tmp)).
+     *
+     * @param string $filename The filename to be parsed.
+     *
+     * @return array The filename scheme and hierarchical part
+     */
+    private function getSchemeAndHierarchy($filename)
+    {
+        $components = explode('://', $filename, 2);
+
+        return 2 === count($components) ? array($components[0], $components[1]) : array(null, $components[0]);
     }
 }

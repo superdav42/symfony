@@ -7,6 +7,9 @@
     'subtle_border_and_shadow': 'background: #FFF; border: 1px solid #E0E0E0; box-shadow: 0px 0px 1px rgba(128, 128, 128, .2);'
 } %}
 
+{# when updating any of these colors, do the same in toolbar.css.twig #}
+{% set colors = { 'success': '#4F805D', 'warning': '#A46A1F', 'error': '#B0413E' } %}
+
 {# Normalization
    (normalize.css v3.0.3 | MIT License | github.com/necolas/normalize.css)
    ========================================================================= #}
@@ -113,9 +116,21 @@ button {
 }
 .btn-sm svg {
     height: 16px;
+    width: 16px;
     vertical-align: middle;
 }
-
+.btn-link {
+    border-color: transparent;
+    color: #218BC3;
+    text-decoration: none;
+    background-color: transparent;
+    outline: none;
+    border: 0;
+    padding: 0;
+}
+.btn-link:hover {
+    text-decoration: underline;
+}
 {# Tables
    ------------------------------------------------------------------------- #}
 table, tr, th, td {
@@ -221,9 +236,13 @@ table tbody ul {
     padding: 3px 7px;
     white-space: nowrap;
 }
-.label.status-success { background: #5E976E; color: #FFF; }
-.label.status-warning { background: #BC8034; color: #FFF; }
-.label.status-error   { background: #B0413E; color: #FFF; }
+.label.same-width {
+    min-width: 70px;
+    text-align: center;
+}
+.label.status-success { background: {{ colors.success|raw }}; color: #FFF; }
+.label.status-warning { background: {{ colors.warning|raw }}; color: #FFF; }
+.label.status-error   { background: {{ colors.error|raw }}; color: #FFF; }
 
 {# Metrics
    ------------------------------------------------------------------------- #}
@@ -265,8 +284,8 @@ table tbody ul {
 }
 
 .metrics-horizontal .metric {
-    min-height: auto;
-    min-width: auto;
+    min-height: 0;
+    min-width: 0;
 }
 .metrics-horizontal .metric .value,
 .metrics-horizontal .metric .label {
@@ -330,11 +349,11 @@ tr.status-warning td {
     border-top: 1px solid #FAFAFA;
 }
 
-.status-warning .colored  {
-    color: #BC8034;
+.status-warning .colored {
+    color: {{ colors.warning|raw }};
 }
 .status-error .colored  {
-    color: #B0413E;
+    color: {{ colors.error|raw }};
 }
 
 {# Syntax highlighting
@@ -354,10 +373,35 @@ tr.status-warning td {
 .highlight .number    { color: #F5871F; font-weight: bold; }
 .highlight .error     { color: #C82829; }
 
+{# Icons
+   ========================================================================= #}
+.sf-icon {
+    vertical-align: middle;
+    background-repeat: no-repeat;
+    background-size: contain;
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+}
+.sf-icon svg {
+    width: 16px;
+    height: 16px;
+}
+.sf-icon.sf-medium,
+.sf-icon.sf-medium svg {
+    width: 24px;
+    height: 24px;
+}
+.sf-icon.sf-large,
+.sf-icon.sf-large svg {
+    width: 32px;
+    height: 32px;
+}
+
+
 {# Layout
    ========================================================================= #}
 .container {
-    min-width: 960px;
     max-width: 1300px;
     padding-right: 15px;
 }
@@ -397,6 +441,7 @@ tr.status-warning td {
 }
 #header h1 svg {
     height: 40px;
+    width: 40px;
     margin-top: -4px;
     vertical-align: middle;
 }
@@ -433,9 +478,9 @@ tr.status-warning td {
     text-decoration: underline;
 }
 
-#summary .status-success { background: #5E976E; }
-#summary .status-warning { background: #BC8034; }
-#summary .status-error   { background: #B0413E; }
+#summary .status-success { background: {{ colors.success|raw }}; }
+#summary .status-warning { background: {{ colors.warning|raw }}; }
+#summary .status-error   { background: {{ colors.error|raw }};   }
 
 #summary .status-success h2,
 #summary .status-success h2 a,
@@ -476,38 +521,36 @@ tr.status-warning td {
     padding-bottom: 99999px; {# needed for 'same-height columns' trick #}
     width: 220px;
 }
-#sidebar a {
-    color: #ADD8E6;
-}
 #sidebar .module {
     padding: 10px;
-}
-#sidebar .module h3 {
-    color: #999;
-    font-size: 12px;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-bottom: 10px;
+    width: 220px;
 }
 
 {# Sidebar Shortcuts
    ------------------------------------------------------------------------- #}
 #sidebar #sidebar-shortcuts {
     background: #333;
+    width: 220px;
+}
+#sidebar #sidebar-shortcuts .shortcuts {
+    position: relative;
     padding: 16px 10px;
-    /* needed to prevent visual issues due to the pure CSS slideToggle() */
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
+}
+#sidebar-shortcuts .icon {
+    display: block;
+    float: left;
+    width: 50px;
+    margin: 2px 0 0 -10px;
+    text-align: center;
 }
 #sidebar #sidebar-shortcuts .btn {
     color: #F5F5F5;
 }
 #sidebar #sidebar-shortcuts .btn + .btn {
-    margin-left: 10px;
+    margin-left: 5px;
+}
+#sidebar #sidebar-shortcuts .btn {
+    padding: .5em;
 }
 
 {# Sidebar Search
@@ -545,20 +588,18 @@ tr.status-warning td {
     float: right;
     margin-right: 10px;
 }
-#sidebar-admin a {
-    font-size: 14px;
-    margin-left: 10px;
-}
 
 {# Sidebar Menu
    ------------------------------------------------------------------------- #}
 #menu-profiler {
     margin: 0;
     padding: 0;
+    list-style-type: none;
 }
 #menu-profiler li {
     position: relative;
     margin-bottom: 0;
+    width: 220px;
 }
 #menu-profiler li a {
     border: solid transparent;
@@ -584,6 +625,11 @@ tr.status-warning td {
     top: 8px;
     width: 50px;
     text-align: center;
+}
+#menu-profiler .label .icon img,
+#menu-profiler .label .icon svg {
+    height: 24px;
+    max-width: 24px;
 }
 #menu-profiler li a .label .icon svg path {
     fill: #DDD;
@@ -639,10 +685,10 @@ tr.status-warning td {
 }
 
 #menu-profiler .label-status-warning .count {
-    background: #BC8034;
+    background: {{ colors.warning|raw }};
 }
 #menu-profiler .label-status-error .count {
-    background: #B0413E;
+    background: {{ colors.error|raw }};
 }
 
 {# Timeline panel
@@ -776,6 +822,25 @@ table.logs .metadata {
 table.logs .metadata strong {
     color: #222;
 }
+table.logs .metadata .context {
+    background: #F5F5F5;
+    color: #222;
+}
+table.logs .metadata .context pre {
+    margin: 5px 0;
+    padding: 5px 10px;
+    white-space: pre-wrap;
+}
+
+table.logs .sf-call-stack {
+    margin: 1em 0 1em 1.5em;
+}
+table.logs .sf-call-stack li {
+    margin-bottom: 5px;
+}
+table.logs .sf-call-stack abbr {
+    border: none;
+}
 
 {# Doctrine panel
    ========================================================================= #}
@@ -783,6 +848,11 @@ table.logs .metadata strong {
     background: #F5F5F5;
     margin: .5em 0;
     padding: 1em;
+}
+.queries-table pre {
+    {{ mixins.break_long_words|raw }}
+    margin: 0;
+    white-space: pre-wrap;
 }
 
 {# Dump panel
@@ -842,4 +912,62 @@ table.logs .metadata strong {
 #search-results td {
     {{ mixins.sans_serif_font|raw }}
     vertical-align: middle;
+}
+
+#search-results .sf-search {
+    visibility: hidden;
+    margin-left: 2px;
+}
+#search-results tr:hover .sf-search {
+    visibility: visible;
+}
+
+{# Small screens
+   ========================================================================= #}
+
+.visible-small {
+    display: none;
+}
+.hidden-small {
+    display: inherit;
+}
+
+@media (max-width: 768px) {
+    #collector-content {
+        margin-left: 50px;
+    }
+
+    #sidebar {
+        width: 50px;
+        overflow-y: hidden;
+        transition: width 200ms ease-out;
+    }
+    #sidebar:hover, #sidebar.expanded {
+        width: 220px;
+    }
+
+    #sidebar-search {
+        display: none;
+    }
+    #sidebar:hover #sidebar-search.sf-toggle-visible, #sidebar.expanded #sidebar-search.sf-toggle-visible {
+        display: block;
+    }
+
+    #sidebar .module {
+        display: none;
+    }
+    #sidebar:hover .module, #sidebar.expanded .module {
+        display: block;
+    }
+
+    .visible-small {
+        display: inherit;
+    }
+    .hidden-small {
+        display: none;
+    }
+
+    .btn-sm svg {
+        margin-left: 2px;
+    }
 }

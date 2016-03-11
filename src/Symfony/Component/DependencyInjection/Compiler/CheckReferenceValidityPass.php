@@ -38,15 +38,12 @@ class CheckReferenceValidityPass implements CompilerPassInterface
     {
         $this->container = $container;
 
-        $ancestors = array();
-
         foreach ($container->getDefinitions() as $id => $definition) {
             if ($definition->isSynthetic() || $definition->isAbstract()) {
                 continue;
             }
 
             $this->currentId = $id;
-            $this->currentDefinition = $definition;
 
             $this->validateReferences($definition->getArguments());
             $this->validateReferences($definition->getMethodCalls());

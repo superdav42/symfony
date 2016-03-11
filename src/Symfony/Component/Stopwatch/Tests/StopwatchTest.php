@@ -13,28 +13,16 @@ namespace Symfony\Component\Stopwatch\Tests;
 
 use Symfony\Component\Stopwatch\Stopwatch;
 
-require_once __DIR__.'/ClockMock.php';
-
 /**
  * StopwatchTest.
  *
  * @author Fabien Potencier <fabien@symfony.com>
+ *
+ * @group time-sensitive
  */
 class StopwatchTest extends \PHPUnit_Framework_TestCase
 {
     const DELTA = 20;
-
-    public function setUp()
-    {
-        with_clock_mock(true);
-        parent::setUp();
-    }
-
-    public function tearDown()
-    {
-        with_clock_mock(false);
-        parent::tearDown();
-    }
 
     public function testStart()
     {

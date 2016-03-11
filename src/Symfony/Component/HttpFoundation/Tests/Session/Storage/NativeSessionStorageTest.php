@@ -82,6 +82,16 @@ class NativeSessionStorageTest extends \PHPUnit_Framework_TestCase
         $storage->getBag('non_existing');
     }
 
+    /**
+     * @expectedException \LogicException
+     */
+    public function testRegisterBagForAStartedSessionThrowsException()
+    {
+        $storage = $this->getStorage();
+        $storage->start();
+        $storage->registerBag(new AttributeBag());
+    }
+
     public function testGetId()
     {
         $storage = $this->getStorage();
@@ -127,6 +137,13 @@ class NativeSessionStorageTest extends \PHPUnit_Framework_TestCase
         $storage->getBag('attributes')->set('lucky', 42);
 
         $this->assertEquals(42, $_SESSION['_sf2_attributes']['lucky']);
+    }
+
+    public function testRegenerationFailureDoesNotFlagStorageAsStarted()
+    {
+        $storage = $this->getStorage();
+        $this->assertFalse($storage->regenerate());
+        $this->assertFalse($storage->isStarted());
     }
 
     public function testDefaultSessionCacheLimiter()

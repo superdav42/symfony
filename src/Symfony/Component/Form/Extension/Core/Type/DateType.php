@@ -94,10 +94,13 @@ class DateType extends AbstractType
                 // Only pass a subset of the options to children
                 $yearOptions['choices'] = $this->formatTimestamps($formatter, '/y+/', $this->listYears($options['years']));
                 $yearOptions['placeholder'] = $options['placeholder']['year'];
+                $yearOptions['choice_translation_domain'] = $options['choice_translation_domain']['year'];
                 $monthOptions['choices'] = $this->formatTimestamps($formatter, '/[M|L]+/', $this->listMonths($options['months']));
                 $monthOptions['placeholder'] = $options['placeholder']['month'];
+                $monthOptions['choice_translation_domain'] = $options['choice_translation_domain']['month'];
                 $dayOptions['choices'] = $this->formatTimestamps($formatter, '/d+/', $this->listDays($options['days']));
                 $dayOptions['placeholder'] = $options['placeholder']['day'];
+                $dayOptions['choice_translation_domain'] = $options['choice_translation_domain']['day'];
             }
 
             // Append generic carry-along options
@@ -180,12 +183,8 @@ class DateType extends AbstractType
             return $options['widget'] !== 'single_text';
         };
 
-        $emptyValue = $placeholderDefault = function (Options $options) {
+        $placeholderDefault = function (Options $options) {
             return $options['required'] ? null : '';
-        };
-
-        $placeholder = function (Options $options) {
-            return $options['empty_value'];
         };
 
         $placeholderNormalizer = function (Options $options, $placeholder) use ($placeholderDefault) {
@@ -205,6 +204,23 @@ class DateType extends AbstractType
             );
         };
 
+        $choiceTranslationDomainNormalizer = function (Options $options, $choiceTranslationDomain) {
+            if (is_array($choiceTranslationDomain)) {
+                $default = false;
+
+                return array_replace(
+                    array('year' => $default, 'month' => $default, 'day' => $default),
+                    $choiceTranslationDomain
+                );
+            };
+
+            return array(
+                'year' => $choiceTranslationDomain,
+                'month' => $choiceTranslationDomain,
+                'day' => $choiceTranslationDomain,
+            );
+        };
+
         $format = function (Options $options) {
             return $options['widget'] === 'single_text' ? DateType::HTML5_FORMAT : DateType::DEFAULT_FORMAT;
         };
@@ -218,8 +234,7 @@ class DateType extends AbstractType
             'format' => $format,
             'model_timezone' => null,
             'view_timezone' => null,
-            'empty_value' => $emptyValue, // deprecated
-            'placeholder' => $placeholder,
+            'placeholder' => $placeholderDefault,
             'html5' => true,
             // Don't modify \DateTime classes by reference, we treat
             // them like immutable value objects
@@ -231,10 +246,11 @@ class DateType extends AbstractType
             // this option.
             'data_class' => null,
             'compound' => $compound,
+            'choice_translation_domain' => false,
         ));
 
-        $resolver->setNormalizer('empty_value', $placeholderNormalizer);
         $resolver->setNormalizer('placeholder', $placeholderNormalizer);
+        $resolver->setNormalizer('choice_translation_domain', $choiceTranslationDomainNormalizer);
 
         $resolver->setAllowedValues('input', array(
             'datetime',
@@ -257,14 +273,6 @@ class DateType extends AbstractType
     /**
      * {@inheritdoc}
      */
-    public function getName()
-    {
-        return $this->getBlockPrefix();
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function getBlockPrefix()
     {
         return 'date';
@@ -274,18 +282,15 @@ class DateType extends AbstractType
     {
         $pattern = $formatter->getPattern();
         $timezone = $formatter->getTimezoneId();
+        $formattedTimestamps = array();
 
-        if ($setTimeZone = PHP_VERSION_ID >= 50500 || method_exists($formatter, 'setTimeZone')) {
-            $formatter->setTimeZone('UTC');
-        } else {
-            $formatter->setTimeZoneId('UTC');
-        }
+        $formatter->setTimeZone('UTC');
 
         if (preg_match($regex, $pattern, $matches)) {
             $formatter->setPattern($matches[0]);
 
-            foreach ($timestamps as $key => $timestamp) {
-                $timestamps[$key] = $formatter->format($timestamp);
+            foreach ($timestamps as $timestamp => $choice) {
+                $formattedTimestamps[$formatter->format($timestamp)] = $choice;
             }
 
             // I'd like to clone the formatter above, but then we get a
@@ -293,13 +298,9 @@ class DateType extends AbstractType
             $formatter->setPattern($pattern);
         }
 
-        if ($setTimeZone) {
-            $formatter->setTimeZone($timezone);
-        } else {
-            $formatter->setTimeZoneId($timezone);
-        }
+        $formatter->setTimeZone($timezone);
 
-        return $timestamps;
+        return $formattedTimestamps;
     }
 
     private function listYears(array $years)
@@ -308,7 +309,7 @@ class DateType extends AbstractType
 
         foreach ($years as $year) {
             if (false !== $y = gmmktime(0, 0, 0, 6, 15, $year)) {
-                $result[$year] = $y;
+                $result[$y] = $year;
             }
         }
 
@@ -320,7 +321,7 @@ class DateType extends AbstractType
         $result = array();
 
         foreach ($months as $month) {
-            $result[$month] = gmmktime(0, 0, 0, $month, 15);
+            $result[gmmktime(0, 0, 0, $month, 15)] = $month;
         }
 
         return $result;
@@ -331,7 +332,7 @@ class DateType extends AbstractType
         $result = array();
 
         foreach ($days as $day) {
-            $result[$day] = gmmktime(0, 0, 0, 5, $day);
+            $result[gmmktime(0, 0, 0, 5, $day)] = $day;
         }
 
         return $result;

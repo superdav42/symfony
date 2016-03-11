@@ -22,7 +22,6 @@ use Symfony\Component\Validator\Constraints\NotNull;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Valid;
 use Symfony\Component\Validator\Tests\Constraints\AbstractConstraintValidatorTest;
-use Symfony\Component\Validator\Validation;
 
 /**
  * @author Bernhard Schussek <bschussek@gmail.com>
@@ -54,11 +53,6 @@ class FormValidatorTest extends AbstractConstraintValidatorTest
         );
 
         parent::setUp();
-    }
-
-    protected function getApiVersion()
-    {
-        return Validation::API_VERSION_2_5;
     }
 
     protected function createValidator()
@@ -170,6 +164,19 @@ class FormValidatorTest extends AbstractConstraintValidatorTest
         $form->setData($object);
 
         $this->expectNoValidate();
+
+        $this->validator->validate($form, new Form());
+
+        $this->assertNoViolation();
+    }
+
+    public function testMissingConstraintIndex()
+    {
+        $object = new \stdClass();
+        $form = new FormBuilder('name', '\stdClass', $this->dispatcher, $this->factory);
+        $form = $form->setData($object)->getForm();
+
+        $this->expectValidateAt(0, 'data', $object, 'Default');
 
         $this->validator->validate($form, new Form());
 

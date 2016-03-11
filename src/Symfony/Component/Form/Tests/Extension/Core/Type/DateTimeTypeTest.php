@@ -29,6 +29,7 @@ class DateTimeTypeTest extends TestCase
             'model_timezone' => 'UTC',
             'view_timezone' => 'UTC',
             'date_widget' => 'choice',
+            'years' => array(2010),
             'time_widget' => 'choice',
             'input' => 'datetime',
         ));
@@ -57,6 +58,7 @@ class DateTimeTypeTest extends TestCase
             'view_timezone' => 'UTC',
             'input' => 'string',
             'date_widget' => 'choice',
+            'years' => array(2010),
             'time_widget' => 'choice',
         ));
 
@@ -82,6 +84,7 @@ class DateTimeTypeTest extends TestCase
             'view_timezone' => 'UTC',
             'input' => 'timestamp',
             'date_widget' => 'choice',
+            'years' => array(2010),
             'time_widget' => 'choice',
         ));
 
@@ -108,12 +111,13 @@ class DateTimeTypeTest extends TestCase
             'model_timezone' => 'UTC',
             'view_timezone' => 'UTC',
             'date_widget' => 'choice',
+            'years' => array(2010),
             'time_widget' => 'choice',
             'input' => 'datetime',
             'with_minutes' => false,
         ));
 
-        $form->setData(new \DateTime('2010-06-02 03:04:05 UTC'));
+        $form->setData(new \DateTime());
 
         $input = array(
             'date' => array(
@@ -137,12 +141,13 @@ class DateTimeTypeTest extends TestCase
             'model_timezone' => 'UTC',
             'view_timezone' => 'UTC',
             'date_widget' => 'choice',
+            'years' => array(2010),
             'time_widget' => 'choice',
             'input' => 'datetime',
             'with_seconds' => true,
         ));
 
-        $form->setData(new \DateTime('2010-06-02 03:04:05 UTC'));
+        $form->setData(new \DateTime());
 
         $input = array(
             'date' => array(
@@ -168,6 +173,7 @@ class DateTimeTypeTest extends TestCase
             'model_timezone' => 'America/New_York',
             'view_timezone' => 'Pacific/Tahiti',
             'date_widget' => 'choice',
+            'years' => array(2010),
             'time_widget' => 'choice',
             'input' => 'string',
             'with_seconds' => true,
@@ -262,7 +268,6 @@ class DateTimeTypeTest extends TestCase
         $this->assertDateTimeEquals($dateTime, $form->getData());
     }
 
-    // Bug fix
     public function testInitializeWithDateTime()
     {
         // Throws an exception if "data_class" option is not explicitly set
@@ -483,5 +488,58 @@ class DateTimeTypeTest extends TestCase
 
         $this->assertSame(array(), iterator_to_array($form['time']->getErrors()));
         $this->assertSame(array($error), iterator_to_array($form->getErrors()));
+    }
+
+    public function testPassDefaultChoiceTranslationDomain()
+    {
+        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\DateTimeType', null, array(
+            'with_seconds' => true,
+        ));
+
+        $view = $form->createView();
+
+        $this->assertFalse($view['date']['year']->vars['choice_translation_domain']);
+        $this->assertFalse($view['date']['month']->vars['choice_translation_domain']);
+        $this->assertFalse($view['date']['day']->vars['choice_translation_domain']);
+        $this->assertFalse($view['time']['hour']->vars['choice_translation_domain']);
+        $this->assertFalse($view['time']['minute']->vars['choice_translation_domain']);
+        $this->assertFalse($view['time']['second']->vars['choice_translation_domain']);
+    }
+
+    public function testPassChoiceTranslationDomainAsString()
+    {
+        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\DateTimeType', null, array(
+            'choice_translation_domain' => 'messages',
+            'with_seconds' => true,
+        ));
+
+        $view = $form->createView();
+        $this->assertSame('messages', $view['date']['year']->vars['choice_translation_domain']);
+        $this->assertSame('messages', $view['date']['month']->vars['choice_translation_domain']);
+        $this->assertSame('messages', $view['date']['day']->vars['choice_translation_domain']);
+        $this->assertSame('messages', $view['time']['hour']->vars['choice_translation_domain']);
+        $this->assertSame('messages', $view['time']['minute']->vars['choice_translation_domain']);
+        $this->assertSame('messages', $view['time']['second']->vars['choice_translation_domain']);
+    }
+
+    public function testPassChoiceTranslationDomainAsArray()
+    {
+        $form = $this->factory->create('Symfony\Component\Form\Extension\Core\Type\DateTimeType', null, array(
+            'choice_translation_domain' => array(
+                'year' => 'foo',
+                'month' => 'test',
+                'hour' => 'foo',
+                'second' => 'test',
+            ),
+            'with_seconds' => true,
+        ));
+
+        $view = $form->createView();
+        $this->assertSame('foo', $view['date']['year']->vars['choice_translation_domain']);
+        $this->assertSame('test', $view['date']['month']->vars['choice_translation_domain']);
+        $this->assertFalse($view['date']['day']->vars['choice_translation_domain']);
+        $this->assertSame('foo', $view['time']['hour']->vars['choice_translation_domain']);
+        $this->assertFalse($view['time']['minute']->vars['choice_translation_domain']);
+        $this->assertSame('test', $view['time']['second']->vars['choice_translation_domain']);
     }
 }

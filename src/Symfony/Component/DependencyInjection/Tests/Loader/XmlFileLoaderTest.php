@@ -13,6 +13,7 @@ namespace Symfony\Component\DependencyInjection\Tests\Loader;
 
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
@@ -247,6 +248,27 @@ class XmlFileLoaderTest extends \PHPUnit_Framework_TestCase
         }
     }
 
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\InvalidArgumentException
+     */
+    public function testParseTagsWithoutNameThrowsException()
+    {
+        $container = new ContainerBuilder();
+        $loader = new XmlFileLoader($container, new FileLocator(self::$fixturesPath.'/xml'));
+        $loader->load('tag_without_name.xml');
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\InvalidArgumentException
+     * @expectedExceptionMessageRegExp /The tag name for service ".+" in .* must be a non-empty string/
+     */
+    public function testParseTagWithEmptyNameThrowsException()
+    {
+        $container = new ContainerBuilder();
+        $loader = new XmlFileLoader($container, new FileLocator(self::$fixturesPath.'/xml'));
+        $loader->load('tag_with_empty_name.xml');
+    }
+
     public function testConvertDomElementToArray()
     {
         $doc = new \DOMDocument('1.0');
@@ -369,9 +391,6 @@ class XmlFileLoaderTest extends \PHPUnit_Framework_TestCase
         }
     }
 
-    /**
-     * @covers Symfony\Component\DependencyInjection\Loader\XmlFileLoader::supports
-     */
     public function testSupports()
     {
         $loader = new XmlFileLoader(new ContainerBuilder(), new FileLocator());
@@ -470,5 +489,50 @@ class XmlFileLoaderTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf('Symfony\Component\DependencyInjection\Definition', $barConfigurator[0]);
         $this->assertSame('Baz', $barConfigurator[0]->getClass());
         $this->assertSame('configureBar', $barConfigurator[1]);
+    }
+
+    public function testType()
+    {
+        $container = new ContainerBuilder();
+        $loader = new XmlFileLoader($container, new FileLocator(self::$fixturesPath.'/xml'));
+        $loader->load('services22.xml');
+
+        $this->assertEquals(array('Bar', 'Baz'), $container->getDefinition('foo')->getAutowiringTypes());
+    }
+
+    public function testAutowire()
+    {
+        $container = new ContainerBuilder();
+        $loader = new XmlFileLoader($container, new FileLocator(self::$fixturesPath.'/xml'));
+        $loader->load('services23.xml');
+
+        $this->assertTrue($container->getDefinition('bar')->isAutowired());
+    }
+
+    /**
+     * @group legacy
+     */
+    public function testAliasDefinitionContainsUnsupportedElements()
+    {
+        $container = new ContainerBuilder();
+        $loader = new XmlFileLoader($container, new FileLocator(self::$fixturesPath.'/xml'));
+
+        $deprecations = array();
+        set_error_handler(function ($type, $msg) use (&$deprecations) {
+            if (E_USER_DEPRECATED === $type) {
+                $deprecations[] = $msg;
+            }
+        });
+
+        $loader->load('legacy_invalid_alias_definition.xml');
+
+        $this->assertTrue($container->has('bar'));
+
+        $this->assertCount(3, $deprecations);
+        $this->assertContains('Using the attribute "class" is deprecated for alias definition "bar"', $deprecations[0]);
+        $this->assertContains('Using the element "tag" is deprecated for alias definition "bar"', $deprecations[1]);
+        $this->assertContains('Using the element "factory" is deprecated for alias definition "bar"', $deprecations[2]);
+
+        restore_error_handler();
     }
 }

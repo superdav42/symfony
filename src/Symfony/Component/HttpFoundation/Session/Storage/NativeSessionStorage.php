@@ -64,7 +64,7 @@ class NativeSessionStorage implements SessionStorageInterface
      * ("auto_start", is not supported as it tells PHP to start a session before
      * PHP starts to execute user-land code. Setting during runtime has no effect).
      *
-     * cache_limiter, "nocache" (use "0" to prevent headers from being sent entirely).
+     * cache_limiter, "" (use "0" to prevent headers from being sent entirely).
      * cookie_domain, ""
      * cookie_httponly, ""
      * cookie_lifetime, "0"
@@ -181,6 +181,11 @@ class NativeSessionStorage implements SessionStorageInterface
      */
     public function regenerate($destroy = false, $lifetime = null)
     {
+        // Cannot regenerate the session ID for non-active sessions.
+        if (\PHP_SESSION_ACTIVE !== session_status()) {
+            return false;
+        }
+
         if (null !== $lifetime) {
             ini_set('session.cookie_lifetime', $lifetime);
         }
@@ -231,6 +236,10 @@ class NativeSessionStorage implements SessionStorageInterface
      */
     public function registerBag(SessionBagInterface $bag)
     {
+        if ($this->started) {
+            throw new \LogicException('Cannot register a bag when the session is already started.');
+        }
+
         $this->bags[$bag->getName()] = $bag;
     }
 
@@ -322,7 +331,7 @@ class NativeSessionStorage implements SessionStorageInterface
      * session.save_handler and session.save_path e.g.
      *
      *     ini_set('session.save_handler', 'files');
-     *     ini_set('session.save_path', /tmp');
+     *     ini_set('session.save_path', '/tmp');
      *
      * or pass in a NativeSessionHandler instance which configures session.save_handler in the
      * constructor, for a template see NativeFileSessionHandler or use handlers in

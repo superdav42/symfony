@@ -11,20 +11,20 @@
 
 namespace Symfony\Bundle\FrameworkBundle\Controller;
 
-use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\DependencyInjection\ContainerAwareInterface;
+use Symfony\Component\DependencyInjection\ContainerAwareTrait;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\DependencyInjection\ContainerAware;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Csrf\CsrfToken;
-use Symfony\Component\Form\FormTypeInterface;
+use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\Form;
 use Symfony\Component\Form\FormBuilder;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Doctrine\Bundle\DoctrineBundle\Registry;
 
 /**
@@ -34,14 +34,16 @@ use Doctrine\Bundle\DoctrineBundle\Registry;
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
-abstract class Controller extends ContainerAware
+abstract class Controller implements ContainerAwareInterface
 {
+    use ContainerAwareTrait;
+
     /**
      * Generates a URL from the given parameters.
      *
-     * @param string      $route         The name of the route
-     * @param mixed       $parameters    An array of parameters
-     * @param bool|string $referenceType The type of reference (one of the constants in UrlGeneratorInterface)
+     * @param string $route         The name of the route
+     * @param mixed  $parameters    An array of parameters
+     * @param int    $referenceType The type of reference (one of the constants in UrlGeneratorInterface)
      *
      * @return string The generated URL
      *
@@ -94,6 +96,29 @@ abstract class Controller extends ContainerAware
     protected function redirectToRoute($route, array $parameters = array(), $status = 302)
     {
         return $this->redirect($this->generateUrl($route, $parameters), $status);
+    }
+
+    /**
+     * Returns a JsonResponse that uses the serializer component if enabled, or json_encode.
+     *
+     * @param mixed $data    The response data
+     * @param int   $status  The status code to use for the Response
+     * @param array $headers Array of extra headers to add
+     * @param array $context Context to pass to serializer when using serializer component
+     *
+     * @return JsonResponse
+     */
+    protected function json($data, $status = 200, $headers = array(), $context = array())
+    {
+        if ($this->container->has('serializer')) {
+            $json = $this->container->get('serializer')->serialize($data, 'json', array_merge(array(
+                'json_encode_options' => JsonResponse::DEFAULT_ENCODING_OPTIONS,
+            ), $context));
+
+            return new JsonResponse($json, $status, $headers, true);
+        }
+
+        return new JsonResponse($data, $status, $headers);
     }
 
     /**
@@ -271,9 +296,9 @@ abstract class Controller extends ContainerAware
     /**
      * Creates and returns a Form instance from the type of the form.
      *
-     * @param string|FormTypeInterface $type    The built type of the form
-     * @param mixed                    $data    The initial data for the form
-     * @param array                    $options Options for the form
+     * @param string $type    The fully qualified class name of the form type
+     * @param mixed  $data    The initial data for the form
+     * @param array  $options Options for the form
      *
      * @return Form
      */
@@ -292,7 +317,7 @@ abstract class Controller extends ContainerAware
      */
     protected function createFormBuilder($data = null, array $options = array())
     {
-        return $this->container->get('form.factory')->createBuilder('Symfony\Component\Form\Extension\Core\Type\FormType', $data, $options);
+        return $this->container->get('form.factory')->createBuilder(FormType::class, $data, $options);
     }
 
     /**

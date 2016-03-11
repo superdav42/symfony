@@ -101,7 +101,7 @@
                             var request = requestStack[i];
 
                             var row = document.createElement('tr');
-                            rows.appendChild(row);
+                            rows.insertBefore(row, rows.firstChild);
 
                             var methodCell = document.createElement('td');
                             if (request.error) {
@@ -109,6 +109,19 @@
                             }
                             methodCell.textContent = request.method;
                             row.appendChild(methodCell);
+
+                            var statusCodeCell = document.createElement('td');
+                            var statusCode = document.createElement('span');
+                            if (request.statusCode < 300) {
+                                statusCode.setAttribute('class', 'sf-toolbar-status');
+                            } else if (request.statusCode < 400) {
+                                statusCode.setAttribute('class', 'sf-toolbar-status sf-toolbar-status-yellow');
+                            } else {
+                                statusCode.setAttribute('class', 'sf-toolbar-status sf-toolbar-status-red');
+                            }
+                            statusCode.textContent = request.statusCode || '-';
+                            statusCodeCell.appendChild(statusCode);
+                            row.appendChild(statusCodeCell);
 
                             var pathCell = document.createElement('td');
                             pathCell.className = 'sf-ajax-request-url';
@@ -171,6 +184,8 @@
                             var text = requestStack.length + ' AJAX request' + (requestStack.length > 1 ? 's' : '');
                             infoSpan.textContent = text;
                         }
+
+                        ajaxToolbarPanel.style.display = 'block';
                     } else {
                         ajaxToolbarPanel.style.display = 'none';
                     }
@@ -186,6 +201,7 @@
                     Sfjs.removeClass(ajaxToolbarPanel, 'sf-toolbar-status-red');
                 } else if (state == 'error') {
                     Sfjs.addClass(ajaxToolbarPanel, 'sf-toolbar-status-red');
+                    Sfjs.removeClass(ajaxToolbarPanel, 'sf-ajax-request-loading');
                 } else {
                     Sfjs.addClass(ajaxToolbarPanel, 'sf-ajax-request-loading');
                 }
@@ -222,7 +238,7 @@
                         path = url.substr({{ (request.schemeAndHttpHost ~ request.basePath)|length }});
                     }
 
-                    if (path.substr(0, 1) === '/' && !path.match(new RegExp({{ excluded_ajax_paths|json_encode|raw }}))) {
+                    if (!path.match(new RegExp({{ excluded_ajax_paths|json_encode|raw }}))) {
                         var stackElement = {
                             loading: true,
                             error: false,
@@ -238,6 +254,7 @@
                                 stackElement.duration = new Date() - stackElement.start;
                                 stackElement.loading = false;
                                 stackElement.error = self.status < 200 || self.status >= 400;
+                                stackElement.statusCode = self.status;
                                 stackElement.profile = self.getResponseHeader("X-Debug-Token");
                                 stackElement.profilerUrl = self.getResponseHeader("X-Debug-Token-Link");
 
@@ -357,6 +374,8 @@
                                 activeTab = activeTab.parentNode;
                             }
 
+                            /* get the full list of tabs through the parent of the active tab element */
+                            var tabNavigation = activeTab.parentNode.children;
                             for (var k = 0; k < tabNavigation.length; k++) {
                                 var tabId = tabNavigation[k].getAttribute('data-tab-id');
                                 document.getElementById(tabId).className = 'hidden';
@@ -387,7 +406,16 @@
                     }
 
                     Sfjs.addEventListener(toggles[i], 'click', function(e) {
+                        e.preventDefault();
+
                         var toggle = e.target || e.srcElement;
+
+                        /* needed because when the toggle contains HTML contents, user can click */
+                        /* on any of those elements instead of their parent '.sf-toggle' element */
+                        while (!Sfjs.hasClass(toggle, 'sf-toggle')) {
+                            toggle = toggle.parentNode;
+                        }
+
                         var element = document.querySelector(toggle.getAttribute('data-toggle-selector'));
 
                         Sfjs.toggleClass(element, 'sf-toggle-hidden');
@@ -406,8 +434,6 @@
                         var originalContent = toggle.getAttribute('data-toggle-original-content');
                         var altContent = toggle.getAttribute('data-toggle-alt-content');
                         toggle.innerHTML = currentContent !== altContent ? altContent : originalContent;
-
-                        e.preventDefault();
                     });
                 }
             }

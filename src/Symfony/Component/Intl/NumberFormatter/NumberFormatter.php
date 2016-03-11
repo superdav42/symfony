@@ -37,6 +37,8 @@ use Symfony\Component\Intl\Locale\Locale;
  *
  * @author Eriksen Costa <eriksen.costa@infranology.com.br>
  * @author Bernhard Schussek <bschussek@gmail.com>
+ *
+ * @internal
  */
 class NumberFormatter
 {
@@ -257,7 +259,7 @@ class NumberFormatter
 
     private static $enTextAttributes = array(
         self::DECIMAL => array('', '', '-', '', '*', '', ''),
-        self::CURRENCY => array('¤', '', '(¤', ')', '*', ''),
+        self::CURRENCY => array('¤', '', '-¤', '', '*', ''),
     );
 
     /**
@@ -355,7 +357,7 @@ class NumberFormatter
 
         $ret = $symbol.$value;
 
-        return $negative ? '('.$ret.')' : $ret;
+        return $negative ? '-'.$ret : $ret;
     }
 
     /**

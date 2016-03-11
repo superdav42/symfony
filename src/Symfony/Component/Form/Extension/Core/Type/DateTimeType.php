@@ -114,8 +114,8 @@ class DateTimeType extends AbstractType
                 'years',
                 'months',
                 'days',
-                'empty_value',
                 'placeholder',
+                'choice_translation_domain',
                 'required',
                 'translation_domain',
                 'html5',
@@ -129,8 +129,8 @@ class DateTimeType extends AbstractType
                 'seconds',
                 'with_minutes',
                 'with_seconds',
-                'empty_value',
                 'placeholder',
+                'choice_translation_domain',
                 'required',
                 'translation_domain',
                 'html5',
@@ -243,8 +243,8 @@ class DateTimeType extends AbstractType
         // Don't add some defaults in order to preserve the defaults
         // set in DateType and TimeType
         $resolver->setDefined(array(
-            'empty_value', // deprecated
             'placeholder',
+            'choice_translation_domain',
             'years',
             'months',
             'days',
@@ -278,14 +278,6 @@ class DateTimeType extends AbstractType
             'text',
             'choice',
         ));
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getName()
-    {
-        return $this->getBlockPrefix();
     }
 
     /**

@@ -45,14 +45,6 @@ class TimezoneType extends AbstractType
     /**
      * {@inheritdoc}
      */
-    public function getName()
-    {
-        return $this->getBlockPrefix();
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function getBlockPrefix()
     {
         return 'timezone';
@@ -68,10 +60,10 @@ class TimezoneType extends AbstractType
      *
      * @return array The timezone choices
      */
-    public static function getTimezones()
+    private static function getTimezones()
     {
-        if (null === static::$timezones) {
-            static::$timezones = array();
+        if (null === self::$timezones) {
+            self::$timezones = array();
 
             foreach (\DateTimeZone::listIdentifiers() as $timezone) {
                 $parts = explode('/', $timezone);
@@ -87,10 +79,10 @@ class TimezoneType extends AbstractType
                     $name = $parts[0];
                 }
 
-                static::$timezones[$region][$timezone] = str_replace('_', ' ', $name);
+                self::$timezones[$region][str_replace('_', ' ', $name)] = $timezone;
             }
         }
 
-        return static::$timezones;
+        return self::$timezones;
     }
 }

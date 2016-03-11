@@ -1,6 +1,10 @@
 CHANGELOG
 =========
 
+3.1.0
+-----
+ * deprecated passing objects as URI attributes to the ESI and SSI renderers
+
 3.0.0
 -----
 
@@ -24,6 +28,8 @@ CHANGELOG
  * removed `Symfony\Component\HttpKernel\HttpCache\EsiResponseCacheStrategyInterface`
  * removed `Symfony\Component\HttpKernel\Log\LoggerInterface`
  * removed `Symfony\Component\HttpKernel\Log\NullLogger`
+ * removed `Symfony\Component\HttpKernel\Profiler::import()`
+ * removed `Symfony\Component\HttpKernel\Profiler::export()`
 
 2.8.0
 -----

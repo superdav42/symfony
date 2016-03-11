@@ -55,8 +55,6 @@ use Symfony\Component\DependencyInjection\ParameterBag\FrozenParameterBag;
  *
  * @author Fabien Potencier <fabien@symfony.com>
  * @author Johannes M. Schmitt <schmittjoh@gmail.com>
- *
- * @api
  */
 class Container implements ResettableContainerInterface
 {
@@ -76,8 +74,6 @@ class Container implements ResettableContainerInterface
      * Constructor.
      *
      * @param ParameterBagInterface $parameterBag A ParameterBagInterface instance
-     *
-     * @api
      */
     public function __construct(ParameterBagInterface $parameterBag = null)
     {
@@ -91,8 +87,6 @@ class Container implements ResettableContainerInterface
      *
      *  * Parameter values are resolved;
      *  * The parameter bag is frozen.
-     *
-     * @api
      */
     public function compile()
     {
@@ -105,8 +99,6 @@ class Container implements ResettableContainerInterface
      * Returns true if the container parameter bag are frozen.
      *
      * @return bool true if the container parameter bag are frozen, false otherwise
-     *
-     * @api
      */
     public function isFrozen()
     {
@@ -117,8 +109,6 @@ class Container implements ResettableContainerInterface
      * Gets the service container parameter bag.
      *
      * @return ParameterBagInterface A ParameterBagInterface instance
-     *
-     * @api
      */
     public function getParameterBag()
     {
@@ -133,8 +123,6 @@ class Container implements ResettableContainerInterface
      * @return mixed The parameter value
      *
      * @throws InvalidArgumentException if the parameter is not defined
-     *
-     * @api
      */
     public function getParameter($name)
     {
@@ -147,8 +135,6 @@ class Container implements ResettableContainerInterface
      * @param string $name The parameter name
      *
      * @return bool The presence of parameter in container
-     *
-     * @api
      */
     public function hasParameter($name)
     {
@@ -160,8 +146,6 @@ class Container implements ResettableContainerInterface
      *
      * @param string $name  The parameter name
      * @param mixed  $value The parameter value
-     *
-     * @api
      */
     public function setParameter($name, $value)
     {
@@ -176,8 +160,6 @@ class Container implements ResettableContainerInterface
      *
      * @param string $id      The service identifier
      * @param object $service The service instance
-     *
-     * @api
      */
     public function set($id, $service)
     {
@@ -185,6 +167,10 @@ class Container implements ResettableContainerInterface
 
         if ('service_container' === $id) {
             throw new InvalidArgumentException('You cannot set service "service_container".');
+        }
+
+        if (isset($this->aliases[$id])) {
+            unset($this->aliases[$id]);
         }
 
         $this->services[$id] = $service;
@@ -200,8 +186,6 @@ class Container implements ResettableContainerInterface
      * @param string $id The service identifier
      *
      * @return bool true if the service is defined, false otherwise
-     *
-     * @api
      */
     public function has($id)
     {
@@ -237,8 +221,6 @@ class Container implements ResettableContainerInterface
      * @throws \Exception                        if an exception has been thrown when the service has been resolved
      *
      * @see Reference
-     *
-     * @api
      */
     public function get($id, $invalidBehavior = self::EXCEPTION_ON_INVALID_REFERENCE)
     {
@@ -294,16 +276,12 @@ class Container implements ResettableContainerInterface
             try {
                 $service = $this->$method();
             } catch (\Exception $e) {
-                unset($this->loading[$id]);
-
-                if (array_key_exists($id, $this->services)) {
-                    unset($this->services[$id]);
-                }
+                unset($this->services[$id]);
 
                 throw $e;
+            } finally {
+                unset($this->loading[$id]);
             }
-
-            unset($this->loading[$id]);
 
             return $service;
         }
@@ -347,9 +325,8 @@ class Container implements ResettableContainerInterface
     public function getServiceIds()
     {
         $ids = array();
-        $r = new \ReflectionClass($this);
-        foreach ($r->getMethods() as $method) {
-            if (preg_match('/^get(.+)Service$/', $method->name, $match)) {
+        foreach (get_class_methods($this) as $method) {
+            if (preg_match('/^get(.+)Service$/', $method, $match)) {
                 $ids[] = self::underscore($match[1]);
             }
         }
@@ -379,7 +356,7 @@ class Container implements ResettableContainerInterface
      */
     public static function underscore($id)
     {
-        return strtolower(preg_replace(array('/([A-Z]+)([A-Z][a-z])/', '/([a-z\d])([A-Z])/'), array('\\1_\\2', '\\1_\\2'), strtr($id, '_', '.')));
+        return strtolower(preg_replace(array('/([A-Z]+)([A-Z][a-z])/', '/([a-z\d])([A-Z])/'), array('\\1_\\2', '\\1_\\2'), str_replace('_', '.', $id)));
     }
 
     private function __clone()

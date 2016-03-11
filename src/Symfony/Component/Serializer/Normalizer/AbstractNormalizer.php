@@ -17,38 +17,52 @@ use Symfony\Component\Serializer\Exception\RuntimeException;
 use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactoryInterface;
 use Symfony\Component\Serializer\Mapping\AttributeMetadataInterface;
 use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
+use Symfony\Component\Serializer\SerializerAwareInterface;
+use Symfony\Component\Serializer\SerializerAwareTrait;
 
 /**
  * Normalizer implementation.
  *
  * @author Kévin Dunglas <dunglas@gmail.com>
  */
-abstract class AbstractNormalizer extends SerializerAwareNormalizer implements NormalizerInterface, DenormalizerInterface
+abstract class AbstractNormalizer implements NormalizerInterface, DenormalizerInterface, SerializerAwareInterface
 {
+    use SerializerAwareTrait;
+
+    const CIRCULAR_REFERENCE_LIMIT = 'circular_reference_limit';
+    const OBJECT_TO_POPULATE = 'object_to_populate';
+    const GROUPS = 'groups';
+
     /**
      * @var int
      */
     protected $circularReferenceLimit = 1;
+
     /**
      * @var callable
      */
     protected $circularReferenceHandler;
+
     /**
      * @var ClassMetadataFactoryInterface|null
      */
     protected $classMetadataFactory;
+
     /**
      * @var NameConverterInterface|null
      */
     protected $nameConverter;
+
     /**
      * @var array
      */
     protected $callbacks = array();
+
     /**
      * @var array
      */
     protected $ignoredAttributes = array();
+
     /**
      * @var array
      */
@@ -86,15 +100,9 @@ abstract class AbstractNormalizer extends SerializerAwareNormalizer implements N
      * @param callable $circularReferenceHandler
      *
      * @return self
-     *
-     * @throws InvalidArgumentException
      */
-    public function setCircularReferenceHandler($circularReferenceHandler)
+    public function setCircularReferenceHandler(callable $circularReferenceHandler)
     {
-        if (!is_callable($circularReferenceHandler)) {
-            throw new InvalidArgumentException('The given circular reference handler is not callable.');
-        }
-
         $this->circularReferenceHandler = $circularReferenceHandler;
 
         return $this;
@@ -103,7 +111,7 @@ abstract class AbstractNormalizer extends SerializerAwareNormalizer implements N
     /**
      * Set normalization callbacks.
      *
-     * @param array $callbacks help normalize the result
+     * @param callable[] $callbacks help normalize the result
      *
      * @return self
      *
@@ -152,16 +160,16 @@ abstract class AbstractNormalizer extends SerializerAwareNormalizer implements N
     {
         $objectHash = spl_object_hash($object);
 
-        if (isset($context['circular_reference_limit'][$objectHash])) {
-            if ($context['circular_reference_limit'][$objectHash] >= $this->circularReferenceLimit) {
-                unset($context['circular_reference_limit'][$objectHash]);
+        if (isset($context[static::CIRCULAR_REFERENCE_LIMIT][$objectHash])) {
+            if ($context[static::CIRCULAR_REFERENCE_LIMIT][$objectHash] >= $this->circularReferenceLimit) {
+                unset($context[static::CIRCULAR_REFERENCE_LIMIT][$objectHash]);
 
                 return true;
             }
 
-            ++$context['circular_reference_limit'][$objectHash];
+            ++$context[static::CIRCULAR_REFERENCE_LIMIT][$objectHash];
         } else {
-            $context['circular_reference_limit'][$objectHash] = 1;
+            $context[static::CIRCULAR_REFERENCE_LIMIT][$objectHash] = 1;
         }
 
         return false;
@@ -199,18 +207,38 @@ abstract class AbstractNormalizer extends SerializerAwareNormalizer implements N
      */
     protected function getAllowedAttributes($classOrObject, array $context, $attributesAsString = false)
     {
-        if (!$this->classMetadataFactory || !isset($context['groups']) || !is_array($context['groups'])) {
+        if (!$this->classMetadataFactory || !isset($context[static::GROUPS]) || !is_array($context[static::GROUPS])) {
             return false;
         }
 
         $allowedAttributes = array();
         foreach ($this->classMetadataFactory->getMetadataFor($classOrObject)->getAttributesMetadata() as $attributeMetadata) {
-            if (count(array_intersect($attributeMetadata->getGroups(), $context['groups']))) {
-                $allowedAttributes[] = $attributesAsString ? $attributeMetadata->getName() : $attributeMetadata;
+            $name = $attributeMetadata->getName();
+
+            if (
+                count(array_intersect($attributeMetadata->getGroups(), $context[static::GROUPS])) &&
+                $this->isAllowedAttribute($classOrObject, $name, null, $context)
+            ) {
+                $allowedAttributes[] = $attributesAsString ? $name : $attributeMetadata;
             }
         }
 
-        return array_unique($allowedAttributes);
+        return $allowedAttributes;
+    }
+
+    /**
+     * Is this attribute allowed?
+     *
+     * @param object|string $classOrObject
+     * @param string        $attribute
+     * @param string|null   $format
+     * @param array         $context
+     *
+     * @return bool
+     */
+    protected function isAllowedAttribute($classOrObject, $attribute, $format = null, array $context = array())
+    {
+        return !in_array($attribute, $this->ignoredAttributes);
     }
 
     /**
@@ -230,7 +258,9 @@ abstract class AbstractNormalizer extends SerializerAwareNormalizer implements N
      * Instantiates an object using constructor parameters when needed.
      *
      * This method also allows to denormalize data into an existing object if
-     * it is present in the context with the object_to_populate key.
+     * it is present in the context with the object_to_populate. This object
+     * is removed from the context before being returned to avoid side effects
+     * when recursively normalizing an object graph.
      *
      * @param array            $data
      * @param string           $class
@@ -245,11 +275,14 @@ abstract class AbstractNormalizer extends SerializerAwareNormalizer implements N
     protected function instantiateObject(array &$data, $class, array &$context, \ReflectionClass $reflectionClass, $allowedAttributes)
     {
         if (
-            isset($context['object_to_populate']) &&
-            is_object($context['object_to_populate']) &&
-            $class === get_class($context['object_to_populate'])
+            isset($context[static::OBJECT_TO_POPULATE]) &&
+            is_object($context[static::OBJECT_TO_POPULATE]) &&
+            $context[static::OBJECT_TO_POPULATE] instanceof $class
         ) {
-            return $context['object_to_populate'];
+            $object = $context[static::OBJECT_TO_POPULATE];
+            unset($context[static::OBJECT_TO_POPULATE]);
+
+            return $object;
         }
 
         $constructor = $reflectionClass->getConstructor();
